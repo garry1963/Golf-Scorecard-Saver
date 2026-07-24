@@ -94,7 +94,8 @@ export async function requestUserAccess(displayName: string): Promise<UserProfil
     // Save to users
     await setDoc(doc(db, 'users', user.uid), userDoc, { merge: true });
   } catch (err) {
-    console.warn('Could not save pending request to Firestore:', err);
+    console.error('Could not save pending request to Firestore:', err);
+    throw err;
   }
 
   return userDoc;
@@ -316,16 +317,18 @@ export async function rejectPendingUser(uid: string) {
 }
 
 // FIRESTORE SCORECARD DATA SYNC
-export async function saveRoundToFirestore(round: Round, userId: string) {
+export async function saveRoundToFirestore(round: Round, userId?: string) {
   try {
+    const user = auth.currentUser || (await ensureAnonymousAuth());
+    const uid = userId || user.uid;
     const roundData = {
       ...round,
-      userId,
+      userId: uid,
       updated_at: Date.now(),
     };
     await setDoc(doc(db, 'rounds', round.id), roundData, { merge: true });
   } catch (err) {
-    console.warn('Could not sync round to Firestore (approval or permission required):', err);
+    console.error('Could not sync round to Firestore:', err);
   }
 }
 
@@ -333,7 +336,7 @@ export async function deleteRoundFromFirestore(roundId: string) {
   try {
     await deleteDoc(doc(db, 'rounds', roundId));
   } catch (err) {
-    console.warn('Could not delete round from Firestore (approval or permission required):', err);
+    console.error('Could not delete round from Firestore:', err);
   }
 }
 
@@ -343,10 +346,6 @@ export function listenToRounds(
   isApprovedOrAdmin: boolean,
   callback: (rounds: Round[]) => void
 ) {
-  if (!auth.currentUser || !isApprovedOrAdmin) {
-    return () => {};
-  }
-
   const roundsRef = collection(db, 'rounds');
   const q = query(roundsRef);
 
@@ -383,7 +382,7 @@ export function listenToRounds(
       callback(roundsList);
     },
     (err) => {
-      console.warn('Firestore rounds subscription paused:', err.message);
+      console.warn('Firestore rounds subscription error:', err.message);
     }
   );
 }
@@ -391,14 +390,16 @@ export function listenToRounds(
 // TOURNAMENTS FIRESTORE SYNC
 export async function saveTournamentToFirestore(tournament: Tournament) {
   try {
+    const user = auth.currentUser || (await ensureAnonymousAuth());
     const data = {
       ...tournament,
-      userId: auth.currentUser?.uid || 'admin',
+      userId: user.uid,
       created_at: tournament.created_at || Date.now(),
     };
     await setDoc(doc(db, 'tournaments', tournament.id), data, { merge: true });
   } catch (err) {
-    console.warn('Could not save tournament to Firestore:', err);
+    console.error('Could not save tournament to Firestore:', err);
+    throw err;
   }
 }
 

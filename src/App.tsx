@@ -151,9 +151,7 @@ export default function App() {
       };
 
       saveRound(newRound);
-      if (auth.currentUser) {
-        saveRoundToFirestore(newRound, auth.currentUser.uid);
-      }
+      saveRoundToFirestore(newRound);
       createdRounds.push(newRound);
     }
 
@@ -187,9 +185,7 @@ export default function App() {
     };
 
     saveRound(updatedRound);
-    if (auth.currentUser) {
-      saveRoundToFirestore(updatedRound, auth.currentUser.uid);
-    }
+    saveRoundToFirestore(updatedRound);
     reloadRounds();
   };
 
@@ -224,9 +220,7 @@ export default function App() {
     };
 
     saveRound(updatedRound);
-    if (auth.currentUser) {
-      saveRoundToFirestore(updatedRound, auth.currentUser.uid);
-    }
+    saveRoundToFirestore(updatedRound);
     reloadRounds();
 
     setScreenState({
@@ -237,9 +231,7 @@ export default function App() {
 
   const handleDeleteRound = (roundId: string) => {
     deleteRound(roundId);
-    if (auth.currentUser) {
-      deleteRoundFromFirestore(roundId);
-    }
+    deleteRoundFromFirestore(roundId);
     reloadRounds();
 
     if (
