@@ -48,12 +48,22 @@ export interface PendingUser {
 }
 
 // Ensure anonymous auth for regular users
-export async function ensureAnonymousAuth(): Promise<FirebaseUser> {
+export async function ensureAnonymousAuth(): Promise<FirebaseUser | { uid: string }> {
   if (auth.currentUser) {
     return auth.currentUser;
   }
-  const credential = await signInAnonymously(auth);
-  return credential.user;
+  try {
+    const credential = await signInAnonymously(auth);
+    return credential.user;
+  } catch (err: any) {
+    console.warn('Anonymous Auth disabled or restricted in Firebase Console:', err.message || err);
+    let localId = localStorage.getItem('golf_guest_uid');
+    if (!localId) {
+      localId = 'user_' + Math.random().toString(36).substring(2, 10);
+      localStorage.setItem('golf_guest_uid', localId);
+    }
+    return { uid: localId };
+  }
 }
 
 // Request Access for regular user (adds to pending_users and users)
@@ -76,10 +86,14 @@ export async function requestUserAccess(displayName: string): Promise<UserProfil
     createdAt: requestedAt,
   };
 
-  // Save to pending_users
-  await setDoc(doc(db, 'pending_users', user.uid), pendingDoc, { merge: true });
-  // Save to users
-  await setDoc(doc(db, 'users', user.uid), userDoc, { merge: true });
+  try {
+    // Save to pending_users
+    await setDoc(doc(db, 'pending_users', user.uid), pendingDoc, { merge: true });
+    // Save to users
+    await setDoc(doc(db, 'users', user.uid), userDoc, { merge: true });
+  } catch (err) {
+    console.warn('Could not save pending request to Firestore:', err);
+  }
 
   return userDoc;
 }
@@ -93,7 +107,7 @@ export async function fetchUserProfile(uid: string): Promise<UserProfile | null>
     }
     return null;
   } catch (err) {
-    console.error('Error fetching user profile:', err);
+    console.warn('Error fetching user profile from Firestore:', err);
     return null;
   }
 }
@@ -104,11 +118,21 @@ export async function loginAdmin(email: string, pass: string): Promise<UserProfi
   try {
     credential = await signInWithEmailAndPassword(auth, email, pass);
   } catch (err: any) {
+    if (err.code === 'auth/admin-restricted-operation') {
+      throw new Error(
+        'Email/Password sign-in is disabled or restricted in Firebase Console. Please enable Email/Password provider in Firebase Console -> Authentication -> Sign-in method.'
+      );
+    }
     // If admin user doesn't exist yet, create initial admin
     if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
       try {
         credential = await createUserWithEmailAndPassword(auth, email, pass);
-      } catch (createErr) {
+      } catch (createErr: any) {
+        if (createErr.code === 'auth/admin-restricted-operation') {
+          throw new Error(
+            'Email/Password provider or user registration is restricted in Firebase Console settings.'
+          );
+        }
         throw err;
       }
     } else {
@@ -126,7 +150,11 @@ export async function loginAdmin(email: string, pass: string): Promise<UserProfi
     createdAt: new Date().toISOString(),
   };
 
-  await setDoc(doc(db, 'users', user.uid), adminProfile, { merge: true });
+  try {
+    await setDoc(doc(db, 'users', user.uid), adminProfile, { merge: true });
+  } catch (err) {
+    console.warn('Could not update admin profile in Firestore:', err);
+  }
   return adminProfile;
 }
 
