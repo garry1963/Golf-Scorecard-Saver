@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ShieldAlert,
   Check,
@@ -211,10 +212,10 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
     setActiveTab('request');
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-fadeIn">
       <div
-        className={`w-full max-w-lg rounded-3xl p-6 shadow-2xl transition-all border ${
+        className={`my-auto w-full max-w-lg rounded-3xl p-6 shadow-2xl transition-all border ${
           isSunlight
             ? 'bg-yellow-50 border-black text-black'
             : isDark
@@ -756,4 +757,10 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+
+  return modalContent;
 };
