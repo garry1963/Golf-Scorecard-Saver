@@ -316,16 +316,36 @@ export async function rejectPendingUser(uid: string) {
   await deleteDoc(doc(db, 'users', uid));
 }
 
+// Helper to sanitize data for Firestore (removes undefined fields which cause setDoc to throw errors)
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return null as any;
+  }
+  if (typeof data !== 'object') {
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data.map((item) => sanitizeForFirestore(item)) as any;
+  }
+  const clean: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data as Record<string, any>)) {
+    if (value !== undefined) {
+      clean[key] = sanitizeForFirestore(value);
+    }
+  }
+  return clean as T;
+}
+
 // FIRESTORE SCORECARD DATA SYNC
 export async function saveRoundToFirestore(round: Round, userId?: string) {
   try {
     const user = auth.currentUser || (await ensureAnonymousAuth());
     const uid = userId || user.uid;
-    const roundData = {
+    const roundData = sanitizeForFirestore({
       ...round,
       userId: uid,
       updated_at: Date.now(),
-    };
+    });
     await setDoc(doc(db, 'rounds', round.id), roundData, { merge: true });
   } catch (err) {
     console.error('Could not sync round to Firestore:', err);
@@ -391,11 +411,11 @@ export function listenToRounds(
 export async function saveTournamentToFirestore(tournament: Tournament) {
   try {
     const user = auth.currentUser || (await ensureAnonymousAuth());
-    const data = {
+    const data = sanitizeForFirestore({
       ...tournament,
       userId: user.uid,
       created_at: tournament.created_at || Date.now(),
-    };
+    });
     await setDoc(doc(db, 'tournaments', tournament.id), data, { merge: true });
   } catch (err) {
     console.error('Could not save tournament to Firestore:', err);

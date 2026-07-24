@@ -162,15 +162,18 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
     }
   };
 
+  const [tournamentError, setTournamentError] = useState<string | null>(null);
+
   const handleAddTournament = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTournamentName.trim()) return;
     setLoading(true);
+    setTournamentError(null);
     try {
       const tourn: Tournament = {
         id: 'tourn-' + Date.now(),
         name: newTournamentName.trim(),
-        course_name: newCourseName.trim() || undefined,
+        course_name: newCourseName.trim() || '',
         date: newTournamentDate || new Date().toISOString().split('T')[0],
         created_at: Date.now(),
         userId: auth.currentUser?.uid || 'admin',
@@ -179,8 +182,9 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
       setNewTournamentName('');
       setNewCourseName('');
       setNewTournamentDate('');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error adding tournament:', err);
+      setTournamentError(err?.message || 'Failed to save tournament to database.');
     } finally {
       setLoading(false);
     }
@@ -410,6 +414,12 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
                 <Plus className="w-4 h-4" />
                 <span>Enter New Tournament</span>
               </div>
+
+              {tournamentError && (
+                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 text-xs font-medium">
+                  {tournamentError}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <input
