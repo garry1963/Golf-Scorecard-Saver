@@ -54,7 +54,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   themeMode,
   allRoundsCount = 0,
 }) => {
-  const [activeTab, setActiveTab] = useState<'pending' | 'users' | 'tournaments' | 'login' | 'request'>('request');
+  const [activeTab, setActiveTab] = useState<'pending' | 'users' | 'tournaments' | 'login' | 'request'>('login');
   const [adminEmail, setAdminEmail] = useState('admin@golfscorecards.com');
   const [adminPass, setAdminPass] = useState('');
   const [requestName, setRequestName] = useState('');
@@ -67,21 +67,14 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   const [loginError, setLoginError] = useState<string | null>(null);
   const [requestSuccess, setRequestSuccess] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [tournamentError, setTournamentError] = useState<string | null>(null);
 
   const isDark = themeMode === 'dark';
   const isSunlight = themeMode === 'sunlight';
   const isAdmin = currentUserProfile?.role === 'admin';
 
-  // Ensure active tab is valid for current role
-  const effectiveActiveTab = isAdmin
-    ? (activeTab === 'request' || activeTab === 'login' ? 'pending' : activeTab)
-    : (activeTab === 'request' ? 'request' : 'login');
-
   useEffect(() => {
     if (isAdmin) {
-      if (activeTab === 'request' || activeTab === 'login') {
-        setActiveTab('pending');
-      }
       // Listen to pending users
       const unsubPending = listenToPendingUsers((list) => {
         setPendingList(list);
@@ -99,12 +92,8 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
         unsubUsers();
         unsubTournaments();
       };
-    } else {
-      if (activeTab !== 'request' && activeTab !== 'login') {
-        setActiveTab('login');
-      }
     }
-  }, [isAdmin, currentUserProfile, activeTab]);
+  }, [isAdmin]);
 
   if (!isOpen) return null;
 
@@ -169,8 +158,6 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
       console.error('Error rejecting user:', err);
     }
   };
-
-  const [tournamentError, setTournamentError] = useState<string | null>(null);
 
   const handleAddTournament = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,65 +236,271 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
           </button>
         </div>
 
-        {/* Navigation Tabs if Admin */}
-        {isAdmin && (
-          <div className="flex gap-2 p-1 rounded-2xl bg-slate-500/10 mb-5 text-xs font-bold">
+        {/* Top Navigation Tabs */}
+        <div className="flex gap-1.5 p-1 rounded-2xl bg-slate-500/10 mb-5 text-xs font-bold overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('login')}
+            className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'login'
+                ? isSunlight
+                  ? 'bg-black text-white'
+                  : 'bg-emerald-600 text-white shadow-md'
+                : 'opacity-70 hover:opacity-100'
+            }`}
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Sign In / Auth</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('request')}
+            className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'request'
+                ? isSunlight
+                  ? 'bg-black text-white'
+                  : 'bg-emerald-600 text-white shadow-md'
+                : 'opacity-70 hover:opacity-100'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Request Access</span>
+          </button>
+
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'pending'
+                    ? isSunlight
+                      ? 'bg-black text-white'
+                      : 'bg-emerald-600 text-white shadow-md'
+                    : 'opacity-70 hover:opacity-100'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Pending</span>
+                {pendingList.filter((p) => !p.approved).length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-black font-black">
+                    {pendingList.filter((p) => !p.approved).length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'users'
+                    ? isSunlight
+                      ? 'bg-black text-white'
+                      : 'bg-emerald-600 text-white shadow-md'
+                    : 'opacity-70 hover:opacity-100'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>All Users</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('tournaments')}
+                className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'tournaments'
+                    ? isSunlight
+                      ? 'bg-black text-white'
+                      : 'bg-emerald-600 text-white shadow-md'
+                    : 'opacity-70 hover:opacity-100'
+                }`}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                <span>Tournaments</span>
+                {tournamentsList.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-600 font-black">
+                    {tournamentsList.length}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* TAB 1: Sign In / Auth */}
+        {activeTab === 'login' && (
+          <div className="space-y-4">
+            {currentUserProfile ? (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-sm text-emerald-600 flex items-center gap-2">
+                    <UserCheck className="w-5 h-5" />
+                    <span>Currently Authenticated</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-600 text-white">
+                    {currentUserProfile.role}
+                  </span>
+                </div>
+                <div className="text-xs space-y-1">
+                  <div>Name: <b>{currentUserProfile.displayName}</b></div>
+                  <div>Email: <b>{currentUserProfile.email || 'N/A'}</b></div>
+                  <div>Status: <b className="text-emerald-600">{currentUserProfile.approved ? 'Approved Access' : 'Pending Review'}</b></div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs opacity-80 leading-relaxed">
+                Sign in with your Google Account or Email as Administrator or registered user to access real-time scorecards and cloud features.
+              </p>
+            )}
+
+            {loginError && (
+              <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-bold">
+                {loginError}
+              </div>
+            )}
+
+            {/* Primary Google Sign In Button */}
             <button
-              onClick={() => setActiveTab('pending')}
-              className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                effectiveActiveTab === 'pending'
-                  ? isSunlight
-                    ? 'bg-black text-white'
-                    : 'bg-emerald-600 text-white shadow-md'
-                  : 'opacity-70 hover:opacity-100'
+              type="button"
+              onClick={handleGoogleAdminLogin}
+              disabled={loading}
+              className={`w-full py-3.5 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-3 transition shadow-lg active:scale-95 border ${
+                isSunlight
+                  ? 'bg-black text-white hover:bg-slate-800 border-black'
+                  : isDark
+                  ? 'bg-white text-slate-900 hover:bg-slate-100 border-white'
+                  : 'bg-slate-900 text-white hover:bg-slate-800 border-slate-900'
               }`}
             >
-              <Clock className="w-4 h-4" />
-              <span>Pending</span>
-              {pendingList.filter((p) => !p.approved).length > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-black font-black">
-                  {pendingList.filter((p) => !p.approved).length}
-                </span>
-              )}
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.14C3.26 21.3 7.31 24 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.59H1.29C.47 8.22 0 10.06 0 12s.47 3.78 1.29 5.41l3.99-3.14z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.59l3.99 3.14c.95-2.83 3.6-4.98 6.72-4.98z"
+                />
+              </svg>
+              <span>
+                {loading
+                  ? 'Signing in with Google...'
+                  : currentUserProfile
+                  ? 'Switch Account / Sign in with Google'
+                  : 'Sign in with Google'}
+              </span>
             </button>
 
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                effectiveActiveTab === 'users'
-                  ? isSunlight
-                    ? 'bg-black text-white'
-                    : 'bg-emerald-600 text-white shadow-md'
-                  : 'opacity-70 hover:opacity-100'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              <span>All Users</span>
-            </button>
+            {/* Collapsible Email/Password option fallback */}
+            <details className="mt-4 pt-2 border-t border-slate-500/20 text-xs">
+              <summary className="cursor-pointer font-bold opacity-75 hover:opacity-100 select-none py-1">
+                Sign in with Email / Password
+              </summary>
+              <form onSubmit={handleAdminLogin} className="space-y-3 mt-3">
+                <input
+                  type="email"
+                  required
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  placeholder="admin@golfscorecards.com"
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition focus:outline-none ${
+                    isSunlight
+                      ? 'bg-yellow-100 border-2 border-black text-black'
+                      : isDark
+                      ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                      : 'bg-slate-50 border border-slate-300 text-slate-900 focus:border-emerald-600'
+                  }`}
+                />
+                <input
+                  type="password"
+                  required
+                  value={adminPass}
+                  onChange={(e) => setAdminPass(e.target.value)}
+                  placeholder="••••••••"
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition focus:outline-none ${
+                    isSunlight
+                      ? 'bg-yellow-100 border-2 border-black text-black'
+                      : isDark
+                      ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                      : 'bg-slate-50 border border-slate-300 text-slate-900 focus:border-emerald-600'
+                  }`}
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-2.5 px-3 rounded-xl bg-slate-700 text-white font-bold text-xs hover:bg-slate-800 transition"
+                >
+                  Login with Email
+                </button>
+              </form>
+            </details>
+          </div>
+        )}
 
-            <button
-              onClick={() => setActiveTab('tournaments')}
-              className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                effectiveActiveTab === 'tournaments'
-                  ? isSunlight
-                    ? 'bg-black text-white'
-                    : 'bg-emerald-600 text-white shadow-md'
-                  : 'opacity-70 hover:opacity-100'
-              }`}
-            >
-              <Trophy className="w-4 h-4" />
-              <span>Tournaments</span>
-              {tournamentsList.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-600 font-black">
-                  {tournamentsList.length}
-                </span>
-              )}
-            </button>
+        {/* TAB 2: Request Access Form */}
+        {activeTab === 'request' && (
+          <div>
+            {currentUserProfile?.approved ? (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 space-y-2 text-center">
+                <Check className="w-8 h-8 mx-auto" />
+                <div className="font-black text-base">Your Access Request is Approved!</div>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Welcome, <b>{currentUserProfile.displayName}</b>. You have full scorecards database access.
+                </p>
+              </div>
+            ) : currentUserProfile && !currentUserProfile.approved ? (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 space-y-2 text-center">
+                <Clock className="w-8 h-8 mx-auto animate-pulse" />
+                <div className="font-black text-base">Access Request Pending Approval</div>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Your request for <b>{currentUserProfile.displayName}</b> has been saved to the Firestore
+                  pending collection. An admin will review and approve your account.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleRequestAccess} className="space-y-4">
+                <p className="text-xs opacity-80 leading-relaxed">
+                  Public sign-up is disabled. Regular users must request approval. Enter your name below to register in the admin pending approval collection.
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-emerald-600">
+                    Your Full Name / Player Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={requestName}
+                    onChange={(e) => setRequestName(e.target.value)}
+                    placeholder="e.g. Garry Davies"
+                    className={`w-full px-4 py-3 rounded-2xl text-sm font-bold transition focus:outline-none ${
+                      isSunlight
+                        ? 'bg-yellow-100 border-2 border-black text-black'
+                        : isDark
+                        ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                        : 'bg-slate-50 border border-slate-300 text-slate-900 focus:border-emerald-600'
+                    }`}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 transition shadow-lg active:scale-95 disabled:opacity-50"
+                >
+                  {loading ? 'Submitting Request...' : 'Submit Request to Admin'}
+                </button>
+              </form>
+            )}
           </div>
         )}
 
         {/* ADMIN VIEW 1: Pending Approval List */}
-        {isAdmin && effectiveActiveTab === 'pending' && (
+        {isAdmin && activeTab === 'pending' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
               <span>Pending Requests ({pendingList.filter((p) => !p.approved).length})</span>
@@ -367,7 +560,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
         )}
 
         {/* ADMIN VIEW 2: All Approved Users */}
-        {isAdmin && effectiveActiveTab === 'users' && (
+        {isAdmin && activeTab === 'users' && (
           <div className="space-y-3">
             <div className="text-xs font-bold text-slate-500">
               Registered Users & Roles ({allUsersList.length})
@@ -414,7 +607,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
         )}
 
         {/* ADMIN VIEW 3: Manage Tournaments */}
-        {isAdmin && effectiveActiveTab === 'tournaments' && (
+        {isAdmin && activeTab === 'tournaments' && (
           <div className="space-y-4">
             {/* Add Tournament Form */}
             <form onSubmit={handleAddTournament} className="p-3.5 rounded-2xl border bg-emerald-500/5 border-emerald-500/20 space-y-3">
@@ -529,195 +722,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
           </div>
         )}
 
-        {/* NON-ADMIN VIEW: Request Access or Admin Login */}
-        {!isAdmin && (
-          <div className="space-y-5">
-            {/* Toggle between Request Access and Admin Login */}
-            <div className="flex gap-2 p-1 rounded-2xl bg-slate-500/10 text-xs font-bold">
-              <button
-                onClick={() => setActiveTab('request')}
-                className={`flex-1 py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                  effectiveActiveTab === 'request'
-                    ? isSunlight
-                      ? 'bg-black text-white'
-                      : 'bg-emerald-600 text-white shadow-md'
-                    : 'opacity-70 hover:opacity-100'
-                }`}
-              >
-                <User className="w-4 h-4" />
-                <span>Request Access</span>
-              </button>
 
-              <button
-                onClick={() => setActiveTab('login')}
-                className={`flex-1 py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                  effectiveActiveTab === 'login'
-                    ? isSunlight
-                      ? 'bg-black text-white'
-                      : 'bg-emerald-600 text-white shadow-md'
-                    : 'opacity-70 hover:opacity-100'
-                }`}
-              >
-                <Lock className="w-4 h-4" />
-                <span>Admin Login</span>
-              </button>
-            </div>
-
-            {/* TAB: Request Access Form */}
-            {effectiveActiveTab === 'request' && (
-              <div>
-                {currentUserProfile?.approved ? (
-                  <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 space-y-2 text-center">
-                    <Check className="w-8 h-8 mx-auto" />
-                    <div className="font-black text-base">Your Access Request is Approved!</div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">
-                      Welcome, <b>{currentUserProfile.displayName}</b>. You have full scorecards database access.
-                    </p>
-                  </div>
-                ) : currentUserProfile && !currentUserProfile.approved ? (
-                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 space-y-2 text-center">
-                    <Clock className="w-8 h-8 mx-auto animate-pulse" />
-                    <div className="font-black text-base">Access Request Pending Approval</div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">
-                      Your request for <b>{currentUserProfile.displayName}</b> has been saved to the Firestore
-                      pending collection. An admin will review and approve your account.
-                    </p>
-                  </div>
-                ) : (
-                  <form onSubmit={handleRequestAccess} className="space-y-4">
-                    <p className="text-xs opacity-80 leading-relaxed">
-                      Public sign-up is disabled. Regular users must request approval. Enter your name below to register in the admin pending approval collection.
-                    </p>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-                        Your Full Name / Player Name
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={requestName}
-                        onChange={(e) => setRequestName(e.target.value)}
-                        placeholder="e.g. Garry Davies"
-                        className={`w-full px-4 py-3 rounded-2xl text-sm font-bold transition focus:outline-none ${
-                          isSunlight
-                            ? 'bg-yellow-100 border-2 border-black text-black'
-                            : isDark
-                            ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
-                            : 'bg-slate-50 border border-slate-300 text-slate-900 focus:border-emerald-600'
-                        }`}
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 transition shadow-lg active:scale-95 disabled:opacity-50"
-                    >
-                      {loading ? 'Submitting Request...' : 'Submit Request to Admin'}
-                    </button>
-                  </form>
-                )}
-              </div>
-            )}
-
-            {/* TAB: Admin Account Login with Google */}
-            {effectiveActiveTab === 'login' && (
-              <div className="space-y-4">
-                <p className="text-xs opacity-80 leading-relaxed">
-                  Sign in with your Google Account as Administrator to review pending user access requests and manage Firestore database permissions.
-                  <span className="block mt-1 font-bold text-emerald-600">
-                    🔒 Restricted to authorized administrator: garrydavies1963@gmail.com
-                  </span>
-                </p>
-
-                {loginError && (
-                  <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-bold">
-                    {loginError}
-                  </div>
-                )}
-
-                {/* Primary Google Sign In Button */}
-                <button
-                  type="button"
-                  onClick={handleGoogleAdminLogin}
-                  disabled={loading}
-                  className={`w-full py-3.5 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-3 transition shadow-lg active:scale-95 border ${
-                    isSunlight
-                      ? 'bg-black text-white hover:bg-slate-800 border-black'
-                      : isDark
-                      ? 'bg-white text-slate-900 hover:bg-slate-100 border-white'
-                      : 'bg-slate-900 text-white hover:bg-slate-800 border-slate-900'
-                  }`}
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.14C3.26 21.3 7.31 24 12 24z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.59H1.29C.47 8.22 0 10.06 0 12s.47 3.78 1.29 5.41l3.99-3.14z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.59l3.99 3.14c.95-2.83 3.6-4.98 6.72-4.98z"
-                    />
-                  </svg>
-                  <span>{loading ? 'Signing in with Google...' : 'Sign in with Google'}</span>
-                </button>
-
-                {/* Collapsible Email/Password option fallback */}
-                <details className="mt-4 pt-2 border-t border-slate-500/20 text-xs">
-                  <summary className="cursor-pointer font-bold opacity-75 hover:opacity-100 select-none py-1">
-                    Sign in with Email / Password
-                  </summary>
-                  <form onSubmit={handleAdminLogin} className="space-y-3 mt-3">
-                    <input
-                      type="email"
-                      required
-                      value={adminEmail}
-                      onChange={(e) => setAdminEmail(e.target.value)}
-                      placeholder="admin@golfscorecards.com"
-                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition focus:outline-none ${
-                        isSunlight
-                          ? 'bg-yellow-100 border-2 border-black text-black'
-                          : isDark
-                          ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
-                          : 'bg-slate-50 border border-slate-300 text-slate-900 focus:border-emerald-600'
-                      }`}
-                    />
-                    <input
-                      type="password"
-                      required
-                      value={adminPass}
-                      onChange={(e) => setAdminPass(e.target.value)}
-                      placeholder="••••••••"
-                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition focus:outline-none ${
-                        isSunlight
-                          ? 'bg-yellow-100 border-2 border-black text-black'
-                          : isDark
-                          ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
-                          : 'bg-slate-50 border border-slate-300 text-slate-900 focus:border-emerald-600'
-                      }`}
-                    />
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-2.5 px-3 rounded-xl bg-slate-700 text-white font-bold text-xs hover:bg-slate-800 transition"
-                    >
-                      Login with Email
-                    </button>
-                  </form>
-                </details>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Footer Actions */}
         <div className="mt-6 pt-4 border-t border-slate-500/20 flex items-center justify-between text-xs">
