@@ -71,9 +71,16 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   const isSunlight = themeMode === 'sunlight';
   const isAdmin = currentUserProfile?.role === 'admin';
 
+  // Ensure active tab is valid for current role
+  const effectiveActiveTab = isAdmin
+    ? (activeTab === 'request' || activeTab === 'login' ? 'pending' : activeTab)
+    : (activeTab === 'request' ? 'request' : 'login');
+
   useEffect(() => {
     if (isAdmin) {
-      setActiveTab('pending');
+      if (activeTab === 'request' || activeTab === 'login') {
+        setActiveTab('pending');
+      }
       // Listen to pending users
       const unsubPending = listenToPendingUsers((list) => {
         setPendingList(list);
@@ -92,11 +99,11 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
         unsubTournaments();
       };
     } else {
-      if (!currentUserProfile) {
-        setActiveTab('request');
+      if (activeTab !== 'request' && activeTab !== 'login') {
+        setActiveTab('login');
       }
     }
-  }, [isAdmin, currentUserProfile]);
+  }, [isAdmin, currentUserProfile, activeTab]);
 
   if (!isOpen) return null;
 
@@ -247,7 +254,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
             <button
               onClick={() => setActiveTab('pending')}
               className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                activeTab === 'pending'
+                effectiveActiveTab === 'pending'
                   ? isSunlight
                     ? 'bg-black text-white'
                     : 'bg-emerald-600 text-white shadow-md'
@@ -266,7 +273,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
             <button
               onClick={() => setActiveTab('users')}
               className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                activeTab === 'users'
+                effectiveActiveTab === 'users'
                   ? isSunlight
                     ? 'bg-black text-white'
                     : 'bg-emerald-600 text-white shadow-md'
@@ -280,7 +287,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
             <button
               onClick={() => setActiveTab('tournaments')}
               className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                activeTab === 'tournaments'
+                effectiveActiveTab === 'tournaments'
                   ? isSunlight
                     ? 'bg-black text-white'
                     : 'bg-emerald-600 text-white shadow-md'
@@ -299,7 +306,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
         )}
 
         {/* ADMIN VIEW 1: Pending Approval List */}
-        {isAdmin && activeTab === 'pending' && (
+        {isAdmin && effectiveActiveTab === 'pending' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
               <span>Pending Requests ({pendingList.filter((p) => !p.approved).length})</span>
@@ -359,7 +366,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
         )}
 
         {/* ADMIN VIEW 2: All Approved Users */}
-        {isAdmin && activeTab === 'users' && (
+        {isAdmin && effectiveActiveTab === 'users' && (
           <div className="space-y-3">
             <div className="text-xs font-bold text-slate-500">
               Registered Users & Roles ({allUsersList.length})
@@ -406,7 +413,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
         )}
 
         {/* ADMIN VIEW 3: Manage Tournaments */}
-        {isAdmin && activeTab === 'tournaments' && (
+        {isAdmin && effectiveActiveTab === 'tournaments' && (
           <div className="space-y-4">
             {/* Add Tournament Form */}
             <form onSubmit={handleAddTournament} className="p-3.5 rounded-2xl border bg-emerald-500/5 border-emerald-500/20 space-y-3">
@@ -529,7 +536,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
               <button
                 onClick={() => setActiveTab('request')}
                 className={`flex-1 py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                  activeTab === 'request'
+                  effectiveActiveTab === 'request'
                     ? isSunlight
                       ? 'bg-black text-white'
                       : 'bg-emerald-600 text-white shadow-md'
@@ -543,7 +550,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
               <button
                 onClick={() => setActiveTab('login')}
                 className={`flex-1 py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                  activeTab === 'login'
+                  effectiveActiveTab === 'login'
                     ? isSunlight
                       ? 'bg-black text-white'
                       : 'bg-emerald-600 text-white shadow-md'
@@ -556,7 +563,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
             </div>
 
             {/* TAB: Request Access Form */}
-            {activeTab === 'request' && (
+            {effectiveActiveTab === 'request' && (
               <div>
                 {currentUserProfile?.approved ? (
                   <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 space-y-2 text-center">
@@ -614,7 +621,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
             )}
 
             {/* TAB: Admin Account Login with Google */}
-            {activeTab === 'login' && (
+            {effectiveActiveTab === 'login' && (
               <div className="space-y-4">
                 <p className="text-xs opacity-80 leading-relaxed">
                   Sign in with your Google Account as Administrator to review pending user access requests and manage Firestore database permissions.
