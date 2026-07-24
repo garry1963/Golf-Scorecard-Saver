@@ -1,0 +1,6 @@
+{
+  "name": "Golf Scorecard Saver",
+  "description": "Fast, phone-optimised golf scorecard application with quick touch controls, offline auto-save, and hole-by-hole tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

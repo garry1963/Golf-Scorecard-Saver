@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "users": {
+      "title": "Users",
+      "description": "User profiles and approval status",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string" },
+        "approved": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "approved"]
+    },
+    "pending_users": {
+      "title": "Pending Users",
+      "description": "Requests for access awaiting admin approval",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "approved": { "type": "boolean" },
+        "requestedAt": { "type": "string" }
+      },
+      "required": ["uid", "displayName", "approved"]
+    },
+    "rounds": {
+      "title": "Rounds",
+      "description": "Scorecard rounds",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "player_name": { "type": "string" },
+        "course_name": { "type": "string" },
+        "date": { "type": "string" },
+        "holes": { "type": "number" },
+        "completed": { "type": "boolean" },
+        "total_score": { "type": "number" },
+        "created_at": { "type": "number" }
+      },
+      "required": ["id", "userId", "player_name", "course_name"]
+    }
+  }
+}
