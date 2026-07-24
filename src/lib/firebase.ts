@@ -26,7 +26,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Round } from '../types';
+import { Round, Tournament } from '../types';
 
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -114,17 +114,31 @@ export async function fetchUserProfile(uid: string): Promise<UserProfile | null>
   }
 }
 
+export const AUTHORIZED_ADMIN_EMAILS = [
+  'garrydavies1963@gmail.com',
+  'admin@golfscorecards.com',
+];
+
 const googleProvider = new GoogleAuthProvider();
 
-// Admin Google Sign-In function
+// Admin Google Sign-In function with email lockdown
 export async function loginAdminWithGoogle(): Promise<UserProfile> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
+    const userEmail = (user.email || '').toLowerCase();
+
+    // Strict email check: only allow authorized admin email
+    if (userEmail && !AUTHORIZED_ADMIN_EMAILS.includes(userEmail)) {
+      await signOut(auth);
+      throw new Error(
+        `Access denied: "${user.email}" is not authorized as an administrator. Only garrydavies1963@gmail.com is permitted.`
+      );
+    }
 
     const adminProfile: UserProfile = {
       uid: user.uid,
-      email: user.email || 'admin@golfscorecards.com',
+      email: user.email || 'garrydavies1963@gmail.com',
       displayName: user.displayName || 'Administrator',
       role: 'admin',
       approved: true,
@@ -138,6 +152,9 @@ export async function loginAdminWithGoogle(): Promise<UserProfile> {
     }
     return adminProfile;
   } catch (err: any) {
+    if (err.message && err.message.includes('Access denied')) {
+      throw err;
+    }
     console.error('Google Sign-In error:', err);
     if (
       err.code === 'auth/popup-blocked' ||
@@ -150,7 +167,7 @@ export async function loginAdminWithGoogle(): Promise<UserProfile> {
       const fallbackUser = auth.currentUser || { uid: 'admin_google_master' };
       const fallbackAdminProfile: UserProfile = {
         uid: fallbackUser.uid,
-        email: 'admin@golfscorecards.com',
+        email: 'garrydavies1963@gmail.com',
         displayName: 'Administrator (Google Session)',
         role: 'admin',
         approved: true,
@@ -367,6 +384,56 @@ export function listenToRounds(
     },
     (err) => {
       console.warn('Firestore rounds subscription paused:', err.message);
+    }
+  );
+}
+
+// TOURNAMENTS FIRESTORE SYNC
+export async function saveTournamentToFirestore(tournament: Tournament) {
+  try {
+    const data = {
+      ...tournament,
+      userId: auth.currentUser?.uid || 'admin',
+      created_at: tournament.created_at || Date.now(),
+    };
+    await setDoc(doc(db, 'tournaments', tournament.id), data, { merge: true });
+  } catch (err) {
+    console.warn('Could not save tournament to Firestore:', err);
+  }
+}
+
+export async function deleteTournamentFromFirestore(tournamentId: string) {
+  try {
+    await deleteDoc(doc(db, 'tournaments', tournamentId));
+  } catch (err) {
+    console.warn('Could not delete tournament from Firestore:', err);
+  }
+}
+
+export function listenToTournaments(callback: (tournaments: Tournament[]) => void) {
+  const tournamentsRef = collection(db, 'tournaments');
+  const q = query(tournamentsRef);
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const list: Tournament[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as any;
+        list.push({
+          id: data.id || docSnap.id,
+          name: data.name || '',
+          course_name: data.course_name || '',
+          date: data.date || '',
+          created_at: data.created_at || Date.now(),
+          userId: data.userId,
+        });
+      });
+      list.sort((a, b) => b.created_at - a.created_at);
+      callback(list);
+    },
+    (err) => {
+      console.warn('Firestore tournaments subscription paused:', err.message);
     }
   );
 }

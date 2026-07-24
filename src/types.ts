@@ -27,6 +27,15 @@ export interface Round {
   userId?: string;
 }
 
+export interface Tournament {
+  id: string;
+  name: string;
+  course_name?: string;
+  date?: string;
+  created_at: number;
+  userId?: string;
+}
+
 export type ThemeMode = 'light' | 'dark' | 'sunlight';
 
 export interface AppSettings {

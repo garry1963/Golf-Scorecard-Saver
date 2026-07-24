@@ -7,6 +7,7 @@ import {
   ThemeMode,
   ActiveTab,
   ScreenState,
+  Tournament,
 } from './types';
 import {
   getStoredRounds,
@@ -28,6 +29,7 @@ import {
   listenToRounds,
   saveRoundToFirestore,
   deleteRoundFromFirestore,
+  listenToTournaments,
   UserProfile,
 } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -55,11 +57,20 @@ export default function App() {
   // Firebase auth & admin state
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
+  const [dbTournaments, setDbTournaments] = useState<Tournament[]>([]);
 
   // Synchronize settings with storage
   useEffect(() => {
     setSettings(getStoredSettings());
     setRounds(getStoredRounds());
+  }, []);
+
+  // Listen to tournaments from Firestore
+  useEffect(() => {
+    const unsub = listenToTournaments((list) => {
+      setDbTournaments(list);
+    });
+    return () => unsub();
   }, []);
 
   // Firebase Auth State Listener
@@ -82,9 +93,8 @@ export default function App() {
     const isApprovedOrAdmin = userProfile?.role === 'admin' || userProfile?.approved === true;
 
     const unsubRounds = listenToRounds(currentUid, isApprovedOrAdmin, (firestoreRounds) => {
-      if (firestoreRounds && firestoreRounds.length > 0) {
-        setRounds(firestoreRounds);
-      }
+      const cleanRounds = (firestoreRounds || []).filter((r) => !r.id.startsWith('sample-round-'));
+      setRounds(cleanRounds);
     });
 
     return () => unsubRounds();
@@ -385,6 +395,7 @@ export default function App() {
           <NewRoundView
             defaultPlayerName={settings.defaultPlayerName}
             defaultNumRounds={settings.defaultNumRounds}
+            dbTournaments={dbTournaments}
             onStartRound={handleStartNewRound}
             themeMode={themeMode}
           />

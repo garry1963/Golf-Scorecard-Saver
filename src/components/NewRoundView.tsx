@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { RoundsCount, ThemeMode } from '../types';
-import { User, Trophy, Play } from 'lucide-react';
-import { getRecentPlayers, getRecentCourses } from '../services/storage';
+import React, { useState, useEffect } from 'react';
+import { RoundsCount, ThemeMode, Tournament } from '../types';
+import { User, Trophy, Play, ChevronDown, Plus } from 'lucide-react';
+import { getRecentPlayers } from '../services/storage';
 
 interface NewRoundViewProps {
   defaultPlayerName?: string;
   defaultNumRounds?: RoundsCount;
+  dbTournaments?: Tournament[];
   onStartRound: (playerName: string, tournamentName: string, numRounds: RoundsCount) => void;
   themeMode: ThemeMode;
 }
@@ -13,19 +14,49 @@ interface NewRoundViewProps {
 export const NewRoundView: React.FC<NewRoundViewProps> = ({
   defaultPlayerName = '',
   defaultNumRounds = 2,
+  dbTournaments = [],
   onStartRound,
   themeMode,
 }) => {
   const [playerName, setPlayerName] = useState(defaultPlayerName || 'John Smith');
-  const [tournamentName, setTournamentName] = useState('Club Championship');
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>('');
+  const [tournamentName, setTournamentName] = useState<string>('');
+  const [isCustomTournament, setIsCustomTournament] = useState<boolean>(false);
   const [numRounds, setNumRounds] = useState<RoundsCount>(defaultNumRounds || 2);
   const [error, setError] = useState<string | null>(null);
 
   const recentPlayers = getRecentPlayers();
-  const recentTournaments = getRecentCourses();
 
   const isSunlight = themeMode === 'sunlight';
   const isDark = themeMode === 'dark';
+
+  // Set default tournament from dbTournaments if available
+  useEffect(() => {
+    if (dbTournaments.length > 0 && !selectedTournamentId && !isCustomTournament) {
+      setSelectedTournamentId(dbTournaments[0].id);
+      setTournamentName(dbTournaments[0].name);
+    } else if (dbTournaments.length === 0 && !isCustomTournament) {
+      setIsCustomTournament(true);
+      setTournamentName('Club Championship');
+    }
+  }, [dbTournaments]);
+
+  const handleSelectTournament = (val: string) => {
+    if (val === '__custom__') {
+      setIsCustomTournament(true);
+      setSelectedTournamentId('__custom__');
+      setTournamentName('');
+    } else {
+      setIsCustomTournament(false);
+      setSelectedTournamentId(val);
+      const found = dbTournaments.find((t) => t.id === val);
+      if (found) {
+        setTournamentName(found.name);
+      } else {
+        setTournamentName(val);
+      }
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +65,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       return;
     }
     if (!tournamentName.trim()) {
-      setError('Please enter a tournament name.');
+      setError('Please select or enter a tournament name.');
       return;
     }
 
@@ -101,51 +132,73 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
           )}
         </div>
 
-        {/* Tournament Name Input */}
+        {/* Tournament Name Drop Down List from Database */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-emerald-600">
-            <Trophy className="w-4 h-4" />
-            <span>Tournament Name</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-emerald-600">
+              <Trophy className="w-4 h-4" />
+              <span>Tournament Name</span>
+            </label>
 
-          <input
-            type="text"
-            required
-            value={tournamentName}
-            onChange={(e) => setTournamentName(e.target.value)}
-            placeholder="e.g. Club Championship"
-            className={`w-full px-4 py-3.5 rounded-2xl text-base font-bold transition focus:outline-none ${
-              isSunlight
-                ? 'bg-yellow-100 border-2 border-black text-black placeholder-slate-500 focus:bg-white'
-                : isDark
-                ? 'bg-slate-900 border border-slate-800 text-slate-100 placeholder-slate-500 focus:border-emerald-500'
-                : 'bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-emerald-600 shadow-sm'
-            }`}
-            id="input-tournament-name"
-          />
+            {dbTournaments.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleSelectTournament(isCustomTournament ? (dbTournaments[0]?.id || '') : '__custom__')}
+                className="text-xs text-emerald-600 hover:underline font-semibold flex items-center gap-1"
+              >
+                {isCustomTournament ? 'Select from Database' : '+ Enter Custom Name'}
+              </button>
+            )}
+          </div>
 
-          {/* Quick Tournament Suggestions */}
-          {recentTournaments.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {recentTournaments.map((t) => (
-                <button
-                  type="button"
-                  key={t}
-                  onClick={() => setTournamentName(t)}
-                  className={`text-xs px-2.5 py-1 rounded-full font-medium transition active:scale-95 ${
-                    tournamentName === t
-                      ? isSunlight
-                        ? 'bg-black text-white font-bold'
-                        : 'bg-emerald-600 text-white font-bold'
-                      : isDark
-                      ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
+          {!isCustomTournament && dbTournaments.length > 0 ? (
+            <div className="relative">
+              <select
+                value={selectedTournamentId}
+                onChange={(e) => handleSelectTournament(e.target.value)}
+                required
+                className={`w-full px-4 py-3.5 pr-10 rounded-2xl text-base font-bold transition appearance-none focus:outline-none cursor-pointer ${
+                  isSunlight
+                    ? 'bg-yellow-100 border-2 border-black text-black focus:bg-white'
+                    : isDark
+                    ? 'bg-slate-900 border border-slate-800 text-slate-100 focus:border-emerald-500'
+                    : 'bg-white border border-slate-300 text-slate-900 focus:border-emerald-600 shadow-sm'
+                }`}
+                id="select-tournament-dropdown"
+              >
+                {dbTournaments.map((t) => (
+                  <option key={t.id} value={t.id} className={isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
+                    {t.name} {t.course_name ? `(${t.course_name})` : ''} {t.date ? `[${t.date}]` : ''}
+                  </option>
+                ))}
+                <option value="__custom__" className={isDark ? 'bg-slate-900 text-amber-400' : 'bg-white text-emerald-700'}>
+                  + Enter unlisted tournament...
+                </option>
+              </select>
+              <ChevronDown className="w-5 h-5 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
             </div>
+          ) : (
+            <input
+              type="text"
+              required
+              value={tournamentName}
+              onChange={(e) => setTournamentName(e.target.value)}
+              placeholder="e.g. Club Championship"
+              className={`w-full px-4 py-3.5 rounded-2xl text-base font-bold transition focus:outline-none ${
+                isSunlight
+                  ? 'bg-yellow-100 border-2 border-black text-black placeholder-slate-500 focus:bg-white'
+                  : isDark
+                  ? 'bg-slate-900 border border-slate-800 text-slate-100 placeholder-slate-500 focus:border-emerald-500'
+                  : 'bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-emerald-600 shadow-sm'
+              }`}
+              id="input-tournament-name"
+            />
+          )}
+
+          {dbTournaments.length === 0 && (
+            <p className="text-[11px] opacity-60 italic">
+              No pre-saved tournaments in database yet. Admins can add tournaments in the Admin Portal.
+            </p>
           )}
         </div>
 

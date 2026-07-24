@@ -13,6 +13,9 @@ import {
   Database,
   RefreshCw,
   Search,
+  Trophy,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import {
   auth,
@@ -24,11 +27,14 @@ import {
   listenToAllUsers,
   approvePendingUser,
   rejectPendingUser,
+  saveTournamentToFirestore,
+  deleteTournamentFromFirestore,
+  listenToTournaments,
   UserProfile,
   PendingUser,
   fetchUserProfile,
 } from '../lib/firebase';
-import { ThemeMode, Round } from '../types';
+import { ThemeMode, Round, Tournament } from '../types';
 
 interface AdminApprovalModalProps {
   isOpen: boolean;
@@ -47,12 +53,16 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   themeMode,
   allRoundsCount = 0,
 }) => {
-  const [activeTab, setActiveTab] = useState<'pending' | 'users' | 'login' | 'request'>('request');
+  const [activeTab, setActiveTab] = useState<'pending' | 'users' | 'tournaments' | 'login' | 'request'>('request');
   const [adminEmail, setAdminEmail] = useState('admin@golfscorecards.com');
   const [adminPass, setAdminPass] = useState('');
   const [requestName, setRequestName] = useState('');
   const [pendingList, setPendingList] = useState<PendingUser[]>([]);
   const [allUsersList, setAllUsersList] = useState<UserProfile[]>([]);
+  const [tournamentsList, setTournamentsList] = useState<Tournament[]>([]);
+  const [newTournamentName, setNewTournamentName] = useState('');
+  const [newCourseName, setNewCourseName] = useState('');
+  const [newTournamentDate, setNewTournamentDate] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [requestSuccess, setRequestSuccess] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -72,9 +82,14 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
       const unsubUsers = listenToAllUsers((list) => {
         setAllUsersList(list);
       });
+      // Listen to tournaments
+      const unsubTournaments = listenToTournaments((list) => {
+        setTournamentsList(list);
+      });
       return () => {
         unsubPending();
         unsubUsers();
+        unsubTournaments();
       };
     } else {
       if (!currentUserProfile) {
@@ -144,6 +159,38 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
       await rejectPendingUser(uid);
     } catch (err) {
       console.error('Error rejecting user:', err);
+    }
+  };
+
+  const handleAddTournament = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTournamentName.trim()) return;
+    setLoading(true);
+    try {
+      const tourn: Tournament = {
+        id: 'tourn-' + Date.now(),
+        name: newTournamentName.trim(),
+        course_name: newCourseName.trim() || undefined,
+        date: newTournamentDate || new Date().toISOString().split('T')[0],
+        created_at: Date.now(),
+        userId: auth.currentUser?.uid || 'admin',
+      };
+      await saveTournamentToFirestore(tourn);
+      setNewTournamentName('');
+      setNewCourseName('');
+      setNewTournamentDate('');
+    } catch (err) {
+      console.error('Error adding tournament:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTournament = async (id: string) => {
+    try {
+      await deleteTournamentFromFirestore(id);
+    } catch (err) {
+      console.error('Error deleting tournament:', err);
     }
   };
 
@@ -224,6 +271,25 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
             >
               <Users className="w-4 h-4" />
               <span>All Users</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('tournaments')}
+              className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                activeTab === 'tournaments'
+                  ? isSunlight
+                    ? 'bg-black text-white'
+                    : 'bg-emerald-600 text-white shadow-md'
+                  : 'opacity-70 hover:opacity-100'
+              }`}
+            >
+              <Trophy className="w-4 h-4" />
+              <span>Tournaments</span>
+              {tournamentsList.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-600 font-black">
+                  {tournamentsList.length}
+                </span>
+              )}
             </button>
           </div>
         )}
@@ -335,6 +401,116 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
           </div>
         )}
 
+        {/* ADMIN VIEW 3: Manage Tournaments */}
+        {isAdmin && activeTab === 'tournaments' && (
+          <div className="space-y-4">
+            {/* Add Tournament Form */}
+            <form onSubmit={handleAddTournament} className="p-3.5 rounded-2xl border bg-emerald-500/5 border-emerald-500/20 space-y-3">
+              <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 flex items-center gap-1.5">
+                <Plus className="w-4 h-4" />
+                <span>Enter New Tournament</span>
+              </div>
+
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  required
+                  value={newTournamentName}
+                  onChange={(e) => setNewTournamentName(e.target.value)}
+                  placeholder="Tournament Name (e.g. 2026 Club Championship)"
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition focus:outline-none ${
+                    isSunlight
+                      ? 'bg-yellow-100 border-2 border-black text-black'
+                      : isDark
+                      ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                      : 'bg-white border border-slate-300 text-slate-900 focus:border-emerald-600'
+                  }`}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={newCourseName}
+                    onChange={(e) => setNewCourseName(e.target.value)}
+                    placeholder="Golf Course (Optional)"
+                    className={`w-full px-3.5 py-2 rounded-xl text-xs font-medium transition focus:outline-none ${
+                      isSunlight
+                        ? 'bg-yellow-100 border border-black text-black'
+                        : isDark
+                        ? 'bg-slate-800 border border-slate-700 text-white'
+                        : 'bg-white border border-slate-300 text-slate-900'
+                    }`}
+                  />
+                  <input
+                    type="date"
+                    value={newTournamentDate}
+                    onChange={(e) => setNewTournamentDate(e.target.value)}
+                    className={`w-full px-3.5 py-2 rounded-xl text-xs font-medium transition focus:outline-none ${
+                      isSunlight
+                        ? 'bg-yellow-100 border border-black text-black'
+                        : isDark
+                        ? 'bg-slate-800 border border-slate-700 text-white'
+                        : 'bg-white border border-slate-300 text-slate-900'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !newTournamentName.trim()}
+                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Save Tournament to Database</span>
+              </button>
+            </form>
+
+            {/* List of Tournaments */}
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-slate-500 flex items-center justify-between">
+                <span>Database Tournaments ({tournamentsList.length})</span>
+              </div>
+
+              {tournamentsList.length === 0 ? (
+                <div className="text-center py-6 opacity-60 text-xs">
+                  No tournaments stored in database yet. Add one above!
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                  {tournamentsList.map((t) => (
+                    <div
+                      key={t.id}
+                      className={`p-3 rounded-xl border flex items-center justify-between gap-2 ${
+                        isDark ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+                          <Trophy className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs">{t.name}</div>
+                          <div className="text-[10px] opacity-60">
+                            {t.course_name ? `${t.course_name} • ` : ''}{t.date || 'No date set'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleDeleteTournament(t.id)}
+                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition"
+                        title="Delete Tournament"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* NON-ADMIN VIEW: Request Access or Admin Login */}
         {!isAdmin && (
           <div className="space-y-5">
@@ -432,6 +608,9 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
               <div className="space-y-4">
                 <p className="text-xs opacity-80 leading-relaxed">
                   Sign in with your Google Account as Administrator to review pending user access requests and manage Firestore database permissions.
+                  <span className="block mt-1 font-bold text-emerald-600">
+                    🔒 Restricted to authorized administrator: garrydavies1963@gmail.com
+                  </span>
                 </p>
 
                 {loginError && (

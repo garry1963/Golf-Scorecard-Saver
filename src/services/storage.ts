@@ -17,54 +17,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 // Initial sample rounds if storage is empty
-const INITIAL_SAMPLE_ROUNDS: Round[] = [
-  {
-    id: 'sample-round-1',
-    player_name: 'John Smith',
-    course_name: 'Club Championship',
-    date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
-    holes: 18,
-    num_rounds: 4,
-    round_number: 1,
-    completed: true,
-    total_score: 74,
-    front_9_score: 37,
-    back_9_score: 37,
-    scores: {
-      1: 4, 2: 4, 3: 3, 4: 5, 5: 4, 6: 4, 7: 5, 8: 3, 9: 5,
-      10: 4, 11: 4, 12: 3, 13: 5, 14: 4, 15: 4, 16: 5, 17: 3, 18: 4
-    },
-    pars: {
-      1: 4, 2: 4, 3: 3, 4: 5, 5: 4, 6: 4, 7: 5, 8: 3, 9: 4,
-      10: 4, 11: 4, 12: 3, 13: 5, 14: 4, 15: 4, 16: 5, 17: 3, 18: 4
-    },
-    created_at: Date.now() - 86400000 * 2,
-    updated_at: Date.now() - 86400000 * 2,
-  },
-  {
-    id: 'sample-round-2',
-    player_name: 'John Smith',
-    course_name: 'Masters Tournament',
-    date: new Date(Date.now() - 86400000 * 7).toISOString().split('T')[0],
-    holes: 18,
-    num_rounds: 2,
-    round_number: 1,
-    completed: false,
-    total_score: 22,
-    front_9_score: 22,
-    back_9_score: 0,
-    scores: {
-      1: 4, 2: 5, 3: 4, 4: 4, 5: 5, 6: null, 7: null, 8: null, 9: null,
-      10: null, 11: null, 12: null, 13: null, 14: null, 15: null, 16: null, 17: null, 18: null
-    },
-    pars: {
-      1: 4, 2: 4, 3: 4, 4: 4, 5: 5, 6: 4, 7: 4, 8: 3, 9: 4,
-      10: 4, 11: 4, 12: 3, 13: 5, 14: 4, 15: 4, 16: 5, 17: 3, 18: 4
-    },
-    created_at: Date.now() - 86400000 * 7,
-    updated_at: Date.now() - 86400000 * 7,
-  }
-];
+const INITIAL_SAMPLE_ROUNDS: Round[] = [];
 
 // Helper to calculate totals
 export function calculateRoundTotals(scores: Record<number, number | null>, holes: number = 18): {
@@ -99,15 +52,17 @@ export function getStoredRounds(): Round[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.ROUNDS);
     if (!raw) {
-      // Seed initial rounds
-      localStorage.setItem(STORAGE_KEYS.ROUNDS, JSON.stringify(INITIAL_SAMPLE_ROUNDS));
-      return INITIAL_SAMPLE_ROUNDS;
+      localStorage.setItem(STORAGE_KEYS.ROUNDS, JSON.stringify([]));
+      return [];
     }
     const parsed: Round[] = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) {
+      return parsed.filter((r) => !r.id.startsWith('sample-round-'));
+    }
+    return [];
   } catch (err) {
     console.error('Error loading rounds from storage:', err);
-    return INITIAL_SAMPLE_ROUNDS;
+    return [];
   }
 }
 
