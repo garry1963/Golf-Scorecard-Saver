@@ -17,6 +17,7 @@ import {
 import {
   auth,
   loginAdmin,
+  loginAdminWithGoogle,
   logoutUser,
   requestUserAccess,
   listenToPendingUsers,
@@ -83,6 +84,21 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   }, [isAdmin, currentUserProfile]);
 
   if (!isOpen) return null;
+
+  const handleGoogleAdminLogin = async () => {
+    setLoginError(null);
+    setLoading(true);
+    try {
+      const profile = await loginAdminWithGoogle();
+      onProfileUpdated(profile);
+      setActiveTab('pending');
+    } catch (err: any) {
+      console.error('Admin Google login failed:', err);
+      setLoginError(err.message || 'Failed to sign in with Google.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -411,11 +427,11 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
               </div>
             )}
 
-            {/* TAB: Single Admin Account Login */}
+            {/* TAB: Admin Account Login with Google */}
             {activeTab === 'login' && (
-              <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div className="space-y-4">
                 <p className="text-xs opacity-80 leading-relaxed">
-                  Log in as the Administrator to review pending user access requests and manage Firestore storage permissions.
+                  Sign in with your Google Account as Administrator to review pending user access requests and manage Firestore database permissions.
                 </p>
 
                 {loginError && (
@@ -424,54 +440,84 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
                   </div>
                 )}
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-                    Admin Email
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    placeholder="admin@golfscorecards.com"
-                    className={`w-full px-4 py-3 rounded-2xl text-sm font-bold transition focus:outline-none ${
-                      isSunlight
-                        ? 'bg-yellow-100 border-2 border-black text-black'
-                        : isDark
-                        ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
-                        : 'bg-slate-50 border border-slate-300 text-slate-900 focus:border-emerald-600'
-                    }`}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-                    Admin Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={adminPass}
-                    onChange={(e) => setAdminPass(e.target.value)}
-                    placeholder="••••••••"
-                    className={`w-full px-4 py-3 rounded-2xl text-sm font-bold transition focus:outline-none ${
-                      isSunlight
-                        ? 'bg-yellow-100 border-2 border-black text-black'
-                        : isDark
-                        ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
-                        : 'bg-slate-50 border border-slate-300 text-slate-900 focus:border-emerald-600'
-                    }`}
-                  />
-                </div>
-
+                {/* Primary Google Sign In Button */}
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleGoogleAdminLogin}
                   disabled={loading}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 transition shadow-lg active:scale-95 disabled:opacity-50"
+                  className={`w-full py-3.5 px-4 rounded-2xl font-black text-sm flex items-center justify-center gap-3 transition shadow-lg active:scale-95 border ${
+                    isSunlight
+                      ? 'bg-black text-white hover:bg-slate-800 border-black'
+                      : isDark
+                      ? 'bg-white text-slate-900 hover:bg-slate-100 border-white'
+                      : 'bg-slate-900 text-white hover:bg-slate-800 border-slate-900'
+                  }`}
                 >
-                  {loading ? 'Authenticating Admin...' : 'Login as Administrator'}
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.14C3.26 21.3 7.31 24 12 24z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.59H1.29C.47 8.22 0 10.06 0 12s.47 3.78 1.29 5.41l3.99-3.14z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.59l3.99 3.14c.95-2.83 3.6-4.98 6.72-4.98z"
+                    />
+                  </svg>
+                  <span>{loading ? 'Signing in with Google...' : 'Sign in with Google'}</span>
                 </button>
-              </form>
+
+                {/* Collapsible Email/Password option fallback */}
+                <details className="mt-4 pt-2 border-t border-slate-500/20 text-xs">
+                  <summary className="cursor-pointer font-bold opacity-75 hover:opacity-100 select-none py-1">
+                    Sign in with Email / Password
+                  </summary>
+                  <form onSubmit={handleAdminLogin} className="space-y-3 mt-3">
+                    <input
+                      type="email"
+                      required
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="admin@golfscorecards.com"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition focus:outline-none ${
+                        isSunlight
+                          ? 'bg-yellow-100 border-2 border-black text-black'
+                          : isDark
+                          ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                          : 'bg-slate-50 border border-slate-300 text-slate-900 focus:border-emerald-600'
+                      }`}
+                    />
+                    <input
+                      type="password"
+                      required
+                      value={adminPass}
+                      onChange={(e) => setAdminPass(e.target.value)}
+                      placeholder="••••••••"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition focus:outline-none ${
+                        isSunlight
+                          ? 'bg-yellow-100 border-2 border-black text-black'
+                          : isDark
+                          ? 'bg-slate-800 border border-slate-700 text-white focus:border-emerald-500'
+                          : 'bg-slate-50 border border-slate-300 text-slate-900 focus:border-emerald-600'
+                      }`}
+                    />
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-2.5 px-3 rounded-xl bg-slate-700 text-white font-bold text-xs hover:bg-slate-800 transition"
+                    >
+                      Login with Email
+                    </button>
+                  </form>
+                </details>
+              </div>
             )}
           </div>
         )}
