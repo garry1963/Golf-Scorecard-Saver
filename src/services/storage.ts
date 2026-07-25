@@ -96,6 +96,14 @@ export function saveRound(round: Round): Round {
   return updatedRound;
 }
 
+export function saveAllRounds(rounds: Round[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.ROUNDS, JSON.stringify(rounds));
+  } catch (err) {
+    console.error('Error saving all rounds:', err);
+  }
+}
+
 export function getRoundById(id: string): Round | null {
   const rounds = getStoredRounds();
   return rounds.find((r) => r.id === id) || null;

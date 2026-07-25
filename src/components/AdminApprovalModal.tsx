@@ -32,6 +32,7 @@ import {
   listenToAllUsers,
   approvePendingUser,
   rejectPendingUser,
+  deleteUserAndData,
   saveTournamentToFirestore,
   deleteTournamentFromFirestore,
   listenToTournaments,
@@ -65,6 +66,7 @@ interface AdminApprovalModalProps {
   onExportCSV?: () => void;
   onImportCSV?: (file: File) => void;
   onClearAllData?: () => void;
+  onDeleteUserAndData?: (user: UserProfile) => void;
 }
 
 export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
@@ -87,6 +89,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   onExportCSV,
   onImportCSV,
   onClearAllData,
+  onDeleteUserAndData,
 }) => {
   const [activeTab, setActiveTab] = useState<'scorecards' | 'settings' | 'help' | 'pending' | 'users' | 'tournaments' | 'login' | 'request'>('login');
   const [adminEmail, setAdminEmail] = useState('admin@golfscorecards.com');
@@ -196,6 +199,26 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
       await rejectPendingUser(uid);
     } catch (err) {
       console.error('Error rejecting user:', err);
+    }
+  };
+
+  const handleDeleteUser = async (userToDelete: UserProfile) => {
+    if (
+      window.confirm(
+        `Are you sure you want to delete user "${userToDelete.displayName}" and ALL associated scorecards, PIN code, and permissions?\n\nThis action cannot be undone.`
+      )
+    ) {
+      try {
+        setLoading(true);
+        await deleteUserAndData(userToDelete);
+        if (onDeleteUserAndData) {
+          onDeleteUserAndData(userToDelete);
+        }
+      } catch (err) {
+        console.error('Error deleting user:', err);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -724,15 +747,27 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
                     </div>
                   </div>
 
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
-                      u.approved
-                        ? 'bg-emerald-500/20 text-emerald-600'
-                        : 'bg-amber-500/20 text-amber-600'
-                    }`}
-                  >
-                    {u.approved ? 'Approved' : 'Pending'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+                        u.approved
+                          ? 'bg-emerald-500/20 text-emerald-600'
+                          : 'bg-amber-500/20 text-amber-600'
+                      }`}
+                    >
+                      {u.approved ? 'Approved' : 'Pending'}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUser(u)}
+                      disabled={loading}
+                      className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 transition active:scale-95 disabled:opacity-50"
+                      title={`Delete user ${u.displayName} and all associated scorecards`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

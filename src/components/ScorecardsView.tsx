@@ -13,6 +13,10 @@ import {
   CheckCircle2,
   Clock,
   ArrowUpDown,
+  Lock,
+  KeyRound,
+  Shield,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface ScorecardsViewProps {
@@ -23,6 +27,10 @@ interface ScorecardsViewProps {
   onDuplicateRound: (roundId: string) => void;
   onNewRoundClick: () => void;
   themeMode: ThemeMode;
+  userRole?: 'admin' | 'user';
+  isApproved?: boolean;
+  verifiedPlayerName?: string | null;
+  onOpenPinModal?: () => void;
 }
 
 type SortField = 'date' | 'course' | 'player';
@@ -35,6 +43,10 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
   onDuplicateRound,
   onNewRoundClick,
   themeMode,
+  userRole,
+  isApproved,
+  verifiedPlayerName,
+  onOpenPinModal,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortField>('date');
@@ -42,9 +54,23 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
 
   const isSunlight = themeMode === 'sunlight';
   const isDark = themeMode === 'dark';
+  const isAdmin = userRole === 'admin';
+
+  // Privacy Rule Filtering:
+  // Admin sees ALL scorecards. Approved users with verified PIN code only see scorecards matching their Player Name.
+  const userRounds = React.useMemo(() => {
+    if (isAdmin) {
+      return rounds;
+    }
+    if (isApproved && verifiedPlayerName) {
+      const cleanVerified = verifiedPlayerName.trim().toLowerCase();
+      return rounds.filter((r) => (r.player_name || '').trim().toLowerCase() === cleanVerified);
+    }
+    return [];
+  }, [rounds, isAdmin, isApproved, verifiedPlayerName]);
 
   // Filter & Sort
-  const filteredRounds = rounds
+  const filteredRounds = userRounds
     .filter((r) => {
       const term = searchTerm.toLowerCase().trim();
       if (!term) return true;
@@ -65,6 +91,40 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
 
+  // Render Access Restricted screen for Guest / Pending / Unverified Users
+  if (!isAdmin && (!isApproved || !verifiedPlayerName)) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
+        <div className="w-16 h-16 rounded-3xl bg-amber-500/15 flex items-center justify-center text-amber-500 mb-1">
+          <Lock className="w-8 h-8 stroke-[2.2]" />
+        </div>
+
+        <div>
+          <h2 className="text-xl font-black tracking-tight">Scorecard Privacy & Access Restricted</h2>
+          <p className="text-xs opacity-75 mt-1 max-w-sm mx-auto leading-relaxed">
+            {!isApproved
+              ? 'Pending / Guest users do not have access to view or edit scorecards. Once an administrator approves your account, you can set up your 4-digit PIN code to access your scorecards.'
+              : 'Please enter your 4-digit PIN code for your Player Name to unlock and view your personal scorecards.'}
+          </p>
+        </div>
+
+        {isApproved && onOpenPinModal && (
+          <button
+            onClick={onOpenPinModal}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm shadow-lg transition active:scale-95 ${
+              isSunlight
+                ? 'bg-black text-white hover:bg-slate-900 border-2 border-black'
+                : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'
+            }`}
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>Enter 4-Digit PIN Code</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col p-4 w-full gap-4">
       {/* Top Header */}
@@ -73,8 +133,16 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
           <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
             <span>Scorecards</span>
           </h1>
-          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            {rounds.length} saved {rounds.length === 1 ? 'round' : 'rounds'}
+          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} flex items-center gap-1.5 mt-0.5`}>
+            {isAdmin ? (
+              <span className="text-purple-500 font-bold flex items-center gap-1">
+                <Shield className="w-3 h-3" /> Admin Mode: Viewing All Scorecards ({userRounds.length})
+              </span>
+            ) : (
+              <span className="text-emerald-600 font-bold flex items-center gap-1">
+                <User className="w-3 h-3" /> {verifiedPlayerName}'s Scorecards ({userRounds.length})
+              </span>
+            )}
           </p>
         </div>
 

@@ -12,6 +12,7 @@ import {
 import {
   getStoredRounds,
   saveRound,
+  saveAllRounds,
   deleteRound,
   duplicateRound,
   getStoredSettings,
@@ -44,6 +45,7 @@ import { ViewRoundView } from './components/ViewRoundView';
 import { SettingsView } from './components/SettingsView';
 import { UserHelpView } from './components/UserHelpView';
 import { AdminApprovalModal } from './components/AdminApprovalModal';
+import { PinCodeModal } from './components/PinCodeModal';
 
 export default function App() {
   const [settings, setSettings] = useState<AppSettings>(() => getStoredSettings());
@@ -59,6 +61,23 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [dbTournaments, setDbTournaments] = useState<Tournament[]>([]);
+
+  // PIN Verification State
+  const [verifiedPlayerName, setVerifiedPlayerName] = useState<string | null>(() => {
+    return localStorage.getItem('golf_verified_player') || null;
+  });
+  const [pinModalOpen, setPinModalOpen] = useState<boolean>(false);
+  const [pinModalPlayerName, setPinModalPlayerName] = useState<string>('');
+
+  const handleOpenPinModal = (playerName: string) => {
+    setPinModalPlayerName(playerName);
+    setPinModalOpen(true);
+  };
+
+  const handlePinVerified = (playerName: string) => {
+    setVerifiedPlayerName(playerName);
+    localStorage.setItem('golf_verified_player', playerName);
+  };
 
   // Synchronize settings with storage
   useEffect(() => {
@@ -244,6 +263,25 @@ export default function App() {
     }
   };
 
+  const handleDeleteUserAndData = (deletedUser: UserProfile) => {
+    const nameToMatch = (deletedUser.displayName || '').trim().toLowerCase();
+    const uidToMatch = deletedUser.uid;
+
+    const updatedRounds = rounds.filter((r) => {
+      const matchUid = r.userId && r.userId === uidToMatch;
+      const matchName = nameToMatch && (r.player_name || '').trim().toLowerCase() === nameToMatch;
+      return !matchUid && !matchName;
+    });
+
+    setRounds(updatedRounds);
+    saveAllRounds(updatedRounds);
+
+    if (verifiedPlayerName && verifiedPlayerName.trim().toLowerCase() === nameToMatch) {
+      setVerifiedPlayerName(null);
+      localStorage.removeItem('golf_verified_player');
+    }
+  };
+
   const handleDuplicateRound = (roundId: string) => {
     const duplicated = duplicateRound(roundId);
     if (duplicated) {
@@ -391,6 +429,10 @@ export default function App() {
             dbTournaments={dbTournaments}
             onStartRound={handleStartNewRound}
             themeMode={themeMode}
+            verifiedPlayerName={verifiedPlayerName}
+            onVerifyPinForPlayer={handleOpenPinModal}
+            userRole={userProfile?.role}
+            isApproved={userProfile?.role === 'admin' || userProfile?.approved}
           />
         );
       case 'help':
@@ -422,6 +464,14 @@ export default function App() {
             onDuplicateRound={handleDuplicateRound}
             onNewRoundClick={() => setScreenState({ type: 'tabs', tab: 'new_round' })}
             themeMode={themeMode}
+            userRole={userProfile?.role}
+            isApproved={userProfile?.role === 'admin' || userProfile?.approved}
+            verifiedPlayerName={verifiedPlayerName}
+            onOpenPinModal={() =>
+              handleOpenPinModal(
+                verifiedPlayerName || userProfile?.displayName || settings.defaultPlayerName || 'Player'
+              )
+            }
           />
         );
     }
@@ -457,8 +507,19 @@ export default function App() {
           onTabChange={(tab) => setScreenState({ type: 'tabs', tab })}
           themeMode={themeMode}
           hasUnfinishedRound={!!unfinishedRound}
+          isSignedWithPin={Boolean(verifiedPlayerName) || userProfile?.role === 'admin'}
         />
       )}
+
+      {/* PIN Code Verification Modal */}
+      <PinCodeModal
+        isOpen={pinModalOpen}
+        playerName={pinModalPlayerName}
+        onClose={() => setPinModalOpen(false)}
+        onSuccess={handlePinVerified}
+        themeMode={themeMode}
+        isApproved={userProfile?.role === 'admin' || userProfile?.approved}
+      />
 
       {/* Admin Review & User Auth Portal Modal */}
       <AdminApprovalModal
@@ -479,6 +540,7 @@ export default function App() {
         onExportCSV={handleExportCSV}
         onImportCSV={handleImportCSV}
         onClearAllData={handleClearAllData}
+        onDeleteUserAndData={handleDeleteUserAndData}
       />
     </MobileContainer>
   );

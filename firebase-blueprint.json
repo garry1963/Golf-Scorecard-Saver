@@ -42,6 +42,18 @@
         "created_at": { "type": "number" }
       },
       "required": ["id", "userId", "player_name", "course_name"]
+    },
+    "player_pins": {
+      "title": "Player PINs",
+      "description": "4-digit PIN codes for player scorecard access",
+      "type": "object",
+      "properties": {
+        "playerName": { "type": "string" },
+        "pin": { "type": "string" },
+        "uid": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["playerName", "pin"]
     }
   }
 }

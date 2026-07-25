@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlusCircle, HelpCircle } from 'lucide-react';
+import { PlusCircle, HelpCircle, ClipboardList } from 'lucide-react';
 import { ActiveTab, ThemeMode } from '../types';
 
 interface BottomNavProps {
@@ -7,6 +7,7 @@ interface BottomNavProps {
   onTabChange: (tab: ActiveTab) => void;
   themeMode: ThemeMode;
   hasUnfinishedRound?: boolean;
+  isSignedWithPin?: boolean;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -14,6 +15,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onTabChange,
   themeMode,
   hasUnfinishedRound,
+  isSignedWithPin = false,
 }) => {
   const isSunlight = themeMode === 'sunlight';
   const isDark = themeMode === 'dark';
@@ -42,7 +44,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   };
 
   return (
-    <nav className={`w-full grid grid-cols-2 gap-2 px-4 py-2 sticky bottom-0 z-30 ${navClass}`}>
+    <nav className={`w-full grid ${isSignedWithPin ? 'grid-cols-3' : 'grid-cols-2'} gap-2 px-4 py-2 sticky bottom-0 z-30 ${navClass}`}>
       <button
         onClick={() => onTabChange('new_round')}
         className={`flex flex-col items-center justify-center transition active:scale-95 min-h-[52px] ${getItemClass(
@@ -58,6 +60,20 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         </div>
         <span className="text-xs font-semibold mt-0.5 tracking-tight">New Round</span>
       </button>
+
+      {/* Scorecards Button - Only visible when signed in with PIN code or Admin */}
+      {isSignedWithPin && (
+        <button
+          onClick={() => onTabChange('scorecards')}
+          className={`flex flex-col items-center justify-center transition active:scale-95 min-h-[52px] ${getItemClass(
+            'scorecards'
+          )}`}
+          id="nav-btn-scorecards"
+        >
+          <ClipboardList className="w-6 h-6 stroke-[2.2]" />
+          <span className="text-xs font-semibold mt-0.5 tracking-tight">Scorecards</span>
+        </button>
+      )}
 
       <button
         onClick={() => onTabChange('help')}

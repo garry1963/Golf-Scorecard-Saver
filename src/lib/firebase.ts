@@ -316,6 +316,57 @@ export async function rejectPendingUser(uid: string) {
   await deleteDoc(doc(db, 'users', uid));
 }
 
+// Admin: Delete any user and all associated scorecard data & PIN code
+export async function deleteUserAndData(user: UserProfile) {
+  const uid = user.uid;
+  const playerName = (user.displayName || '').trim();
+
+  // 1. Delete user from 'users' collection
+  try {
+    await deleteDoc(doc(db, 'users', uid));
+  } catch (err) {
+    console.warn('Error deleting user doc:', err);
+  }
+
+  // 2. Delete pending user if present
+  try {
+    await deleteDoc(doc(db, 'pending_users', uid));
+  } catch (err) {
+    console.warn('Error deleting pending user doc:', err);
+  }
+
+  // 3. Delete player pin if present
+  if (playerName) {
+    try {
+      await deleteDoc(doc(db, 'player_pins', playerName.toLowerCase()));
+    } catch (err) {
+      console.warn('Error deleting player pin doc:', err);
+    }
+  }
+
+  // 4. Delete associated scorecards from Firestore
+  try {
+    const roundsRef = collection(db, 'rounds');
+    // Query by userId
+    const q1 = query(roundsRef, where('userId', '==', uid));
+    const snap1 = await getDocs(q1);
+    snap1.forEach((d) => {
+      deleteDoc(d.ref).catch((e) => console.warn('Error deleting round doc:', e));
+    });
+
+    // Query by player_name
+    if (playerName) {
+      const q2 = query(roundsRef, where('player_name', '==', playerName));
+      const snap2 = await getDocs(q2);
+      snap2.forEach((d) => {
+        deleteDoc(d.ref).catch((e) => console.warn('Error deleting round doc:', e));
+      });
+    }
+  } catch (err) {
+    console.warn('Error querying/deleting user scorecards from Firestore:', err);
+  }
+}
+
 // Helper to sanitize data for Firestore (removes undefined fields which cause setDoc to throw errors)
 export function sanitizeForFirestore<T>(data: T): T {
   if (data === null || data === undefined) {
@@ -357,6 +408,69 @@ export async function deleteRoundFromFirestore(roundId: string) {
     await deleteDoc(doc(db, 'rounds', roundId));
   } catch (err) {
     console.error('Could not delete round from Firestore:', err);
+  }
+}
+
+// PLAYER PIN CODE MANAGEMENT
+export interface PlayerPin {
+  playerName: string;
+  pin: string;
+  uid?: string;
+  createdAt: number;
+}
+
+export async function getPlayerPin(playerName: string): Promise<string | null> {
+  if (!playerName || !playerName.trim()) return null;
+  const cleanName = playerName.trim().toLowerCase();
+  
+  // 1. Try Firestore
+  try {
+    const snap = await getDoc(doc(db, 'player_pins', cleanName));
+    if (snap.exists()) {
+      return (snap.data() as PlayerPin).pin || null;
+    }
+  } catch (err) {
+    console.warn('Firestore getPlayerPin error:', err);
+  }
+
+  // 2. LocalStorage Fallback
+  try {
+    const raw = localStorage.getItem('golf_player_pins');
+    if (raw) {
+      const map = JSON.parse(raw);
+      return map[cleanName] || null;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
+export async function setPlayerPin(playerName: string, pin: string, uid?: string): Promise<void> {
+  if (!playerName || !playerName.trim() || !pin) return;
+  const cleanName = playerName.trim().toLowerCase();
+  const data: PlayerPin = {
+    playerName: playerName.trim(),
+    pin,
+    uid,
+    createdAt: Date.now(),
+  };
+
+  // 1. Save to LocalStorage
+  try {
+    const raw = localStorage.getItem('golf_player_pins');
+    const map = raw ? JSON.parse(raw) : {};
+    map[cleanName] = pin;
+    localStorage.setItem('golf_player_pins', JSON.stringify(map));
+  } catch (e) {
+    // ignore
+  }
+
+  // 2. Save to Firestore
+  try {
+    await setDoc(doc(db, 'player_pins', cleanName), data, { merge: true });
+  } catch (err) {
+    console.warn('Firestore setPlayerPin error:', err);
   }
 }
 

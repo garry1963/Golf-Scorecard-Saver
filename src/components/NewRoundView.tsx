@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RoundsCount, ThemeMode, Tournament } from '../types';
-import { User, Trophy, Play, ChevronDown, Plus } from 'lucide-react';
-import { getRecentPlayers } from '../services/storage';
+import { User, Trophy, Play, ChevronDown, Plus, KeyRound, Lock, CheckCircle2 } from 'lucide-react';
+import { getRecentPlayers, getStoredRounds } from '../services/storage';
 
 interface NewRoundViewProps {
   defaultPlayerName?: string;
@@ -9,6 +9,10 @@ interface NewRoundViewProps {
   dbTournaments?: Tournament[];
   onStartRound: (playerName: string, tournamentName: string, numRounds: RoundsCount) => void;
   themeMode: ThemeMode;
+  verifiedPlayerName?: string | null;
+  onVerifyPinForPlayer?: (playerName: string) => void;
+  userRole?: 'admin' | 'user';
+  isApproved?: boolean;
 }
 
 export const NewRoundView: React.FC<NewRoundViewProps> = ({
@@ -17,18 +21,64 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   dbTournaments = [],
   onStartRound,
   themeMode,
+  verifiedPlayerName,
+  onVerifyPinForPlayer,
+  userRole,
+  isApproved,
 }) => {
   const [playerName, setPlayerName] = useState(defaultPlayerName || '');
+  const [isCustomPlayer, setIsCustomPlayer] = useState<boolean>(false);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>('');
   const [tournamentName, setTournamentName] = useState<string>('');
-  const [isCustomTournament, setIsCustomTournament] = useState<boolean>(false);
   const [numRounds, setNumRounds] = useState<RoundsCount>(defaultNumRounds || 2);
   const [error, setError] = useState<string | null>(null);
 
-  const recentPlayers = getRecentPlayers();
-
   const isSunlight = themeMode === 'sunlight';
   const isDark = themeMode === 'dark';
+  const isAdmin = userRole === 'admin';
+
+  // PIN Verification Check
+  const isPinVerified = React.useMemo(() => {
+    if (isAdmin) return true;
+    if (!playerName || !playerName.trim()) return false;
+    return (
+      Boolean(verifiedPlayerName) &&
+      verifiedPlayerName!.trim().toLowerCase() === playerName.trim().toLowerCase()
+    );
+  }, [isAdmin, verifiedPlayerName, playerName]);
+
+  // Gather unique available players from default, recent history, and stored rounds
+  const availablePlayers = React.useMemo(() => {
+    const list: string[] = [];
+    if (defaultPlayerName && defaultPlayerName.trim()) {
+      list.push(defaultPlayerName.trim());
+    }
+    const recent = getRecentPlayers();
+    recent.forEach((p) => {
+      if (p && p.trim() && !list.includes(p.trim())) {
+        list.push(p.trim());
+      }
+    });
+    try {
+      const stored = getStoredRounds();
+      stored.forEach((r) => {
+        if (r.player_name && r.player_name.trim() && !list.includes(r.player_name.trim())) {
+          list.push(r.player_name.trim());
+        }
+      });
+    } catch (e) {
+      // ignore
+    }
+    return list;
+  }, [defaultPlayerName]);
+
+  // Set default player from availablePlayers if available and not custom
+  useEffect(() => {
+    if (availablePlayers.length > 0 && !playerName && !isCustomPlayer) {
+      const firstPlayer = verifiedPlayerName || availablePlayers[0];
+      setPlayerName(firstPlayer);
+    }
+  }, [availablePlayers, verifiedPlayerName]);
 
   // Sort tournaments by date in ascending order
   const sortedTournaments = React.useMemo(() => {
@@ -39,30 +89,31 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     });
   }, [dbTournaments]);
 
-  // Set default tournament from sortedTournaments if available
-  useEffect(() => {
-    if (sortedTournaments.length > 0 && !selectedTournamentId && !isCustomTournament) {
-      setSelectedTournamentId(sortedTournaments[0].id);
-      setTournamentName(sortedTournaments[0].name);
-    } else if (dbTournaments.length === 0 && !isCustomTournament) {
-      setIsCustomTournament(true);
-      setTournamentName('Club Championship');
-    }
-  }, [sortedTournaments]);
-
   const handleSelectTournament = (val: string) => {
-    if (val === '__custom__') {
-      setIsCustomTournament(true);
-      setSelectedTournamentId('__custom__');
+    if (!isPinVerified) {
+      if (playerName && onVerifyPinForPlayer) {
+        onVerifyPinForPlayer(playerName.trim());
+      } else {
+        setError('Please select or enter a player name first.');
+      }
+      return;
+    }
+    setSelectedTournamentId(val);
+    if (!val) {
       setTournamentName('');
     } else {
-      setIsCustomTournament(false);
-      setSelectedTournamentId(val);
       const found = sortedTournaments.find((t) => t.id === val);
-      if (found) {
-        setTournamentName(found.name);
-      } else {
-        setTournamentName(val);
+      setTournamentName(found ? found.name : '');
+    }
+  };
+
+  const handlePlayerChange = (selectedName: string) => {
+    setPlayerName(selectedName);
+    setError(null);
+    if (selectedName && selectedName.trim() && onVerifyPinForPlayer) {
+      // Prompt PIN code for the selected player if not verified
+      if (!isAdmin && (!verifiedPlayerName || verifiedPlayerName.trim().toLowerCase() !== selectedName.trim().toLowerCase())) {
+        onVerifyPinForPlayer(selectedName.trim());
       }
     }
   };
@@ -73,8 +124,15 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       setError('Please enter a player name.');
       return;
     }
+    if (!isPinVerified) {
+      setError('Please enter your 4-digit PIN code for ' + playerName + ' to proceed.');
+      if (onVerifyPinForPlayer) {
+        onVerifyPinForPlayer(playerName.trim());
+      }
+      return;
+    }
     if (!tournamentName.trim()) {
-      setError('Please select or enter a tournament name.');
+      setError('Please select a tournament from the database.');
       return;
     }
 
@@ -93,78 +151,46 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       </div>
 
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-5">
-        {/* Player Name Input */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-emerald-600">
-            <User className="w-4 h-4" />
-            <span>Player Name</span>
-          </label>
-
-          <input
-            type="text"
-            required
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Enter player name"
-            className={`w-full px-4 py-3.5 rounded-2xl text-base font-bold transition focus:outline-none ${
-              isSunlight
-                ? 'bg-yellow-100 border-2 border-black text-black placeholder-slate-500 focus:bg-white'
-                : isDark
-                ? 'bg-slate-900 border border-slate-800 text-slate-100 placeholder-slate-500 focus:border-emerald-500'
-                : 'bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-emerald-600 shadow-sm'
-            }`}
-            id="input-player-name"
-          />
-
-          {/* Quick Player Suggestions */}
-          {recentPlayers.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {recentPlayers.map((p) => (
-                <button
-                  type="button"
-                  key={p}
-                  onClick={() => setPlayerName(p)}
-                  className={`text-xs px-2.5 py-1 rounded-full font-medium transition active:scale-95 ${
-                    playerName === p
-                      ? isSunlight
-                        ? 'bg-black text-white font-bold'
-                        : 'bg-emerald-600 text-white font-bold'
-                      : isDark
-                      ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Tournament Name Drop Down List from Database */}
+        {/* Player Name Input / Dropdown Selection */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-emerald-600">
-              <Trophy className="w-4 h-4" />
-              <span>Tournament Name</span>
+              <User className="w-4 h-4" />
+              <span>Player Name</span>
             </label>
 
-            {sortedTournaments.length > 0 && (
+            {availablePlayers.length > 0 && (
               <button
                 type="button"
-                onClick={() => handleSelectTournament(isCustomTournament ? (sortedTournaments[0]?.id || '') : '__custom__')}
+                onClick={() => {
+                  if (isCustomPlayer) {
+                    setIsCustomPlayer(false);
+                    handlePlayerChange(availablePlayers[0] || '');
+                  } else {
+                    setIsCustomPlayer(true);
+                    setPlayerName('');
+                  }
+                }}
                 className="text-xs text-emerald-600 hover:underline font-semibold flex items-center gap-1"
               >
-                {isCustomTournament ? 'Select from Database' : '+ Enter Custom Name'}
+                {isCustomPlayer ? 'Select Saved Player' : '+ Enter New Name'}
               </button>
             )}
           </div>
 
-          {!isCustomTournament && sortedTournaments.length > 0 ? (
+          {!isCustomPlayer && availablePlayers.length > 0 ? (
             <div className="relative">
               <select
-                value={selectedTournamentId}
-                onChange={(e) => handleSelectTournament(e.target.value)}
+                value={availablePlayers.includes(playerName) ? playerName : '__custom__'}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') {
+                    setIsCustomPlayer(true);
+                    setPlayerName('');
+                  } else {
+                    setIsCustomPlayer(false);
+                    handlePlayerChange(e.target.value);
+                  }
+                }}
                 required
                 className={`w-full px-4 py-3.5 pr-10 rounded-2xl text-base font-bold transition appearance-none focus:outline-none cursor-pointer ${
                   isSunlight
@@ -173,15 +199,15 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
                     ? 'bg-slate-900 border border-slate-800 text-slate-100 focus:border-emerald-500'
                     : 'bg-white border border-slate-300 text-slate-900 focus:border-emerald-600 shadow-sm'
                 }`}
-                id="select-tournament-dropdown"
+                id="select-player-dropdown"
               >
-                {sortedTournaments.map((t) => (
-                  <option key={t.id} value={t.id} className={isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
-                    {t.name} {t.course_name ? `(${t.course_name})` : ''} {t.date ? `[${t.date}]` : ''}
+                {availablePlayers.map((p) => (
+                  <option key={p} value={p} className={isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
+                    {p} {verifiedPlayerName?.trim().toLowerCase() === p.trim().toLowerCase() ? '✓ (PIN Verified)' : ''}
                   </option>
                 ))}
                 <option value="__custom__" className={isDark ? 'bg-slate-900 text-amber-400' : 'bg-white text-emerald-700'}>
-                  + Enter unlisted tournament...
+                  + Enter new player name...
                 </option>
               </select>
               <ChevronDown className="w-5 h-5 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
@@ -190,9 +216,16 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
             <input
               type="text"
               required
-              value={tournamentName}
-              onChange={(e) => setTournamentName(e.target.value)}
-              placeholder="e.g. Club Championship"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              onBlur={() => {
+                if (playerName.trim() && onVerifyPinForPlayer) {
+                  if (!isAdmin && (!verifiedPlayerName || verifiedPlayerName.trim().toLowerCase() !== playerName.trim().toLowerCase())) {
+                    onVerifyPinForPlayer(playerName.trim());
+                  }
+                }
+              }}
+              placeholder="Enter player name"
               className={`w-full px-4 py-3.5 rounded-2xl text-base font-bold transition focus:outline-none ${
                 isSunlight
                   ? 'bg-yellow-100 border-2 border-black text-black placeholder-slate-500 focus:bg-white'
@@ -200,14 +233,89 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
                   ? 'bg-slate-900 border border-slate-800 text-slate-100 placeholder-slate-500 focus:border-emerald-500'
                   : 'bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-emerald-600 shadow-sm'
               }`}
-              id="input-tournament-name"
+              id="input-player-name"
             />
           )}
 
-          {dbTournaments.length === 0 && (
-            <p className="text-[11px] opacity-60 italic">
-              No pre-saved tournaments in database yet. Admins can add tournaments in the Admin Portal.
-            </p>
+          {/* PIN Verification Status Banner */}
+          {playerName.trim() && (
+            <div className="mt-1">
+              {isPinVerified ? (
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-xs font-bold flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>PIN Verified for {playerName}</span>
+                  </span>
+                  <span className="text-[10px] opacity-75">Unlocked</span>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-medium flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>PIN Code required to select tournament for <strong>{playerName}</strong>.</span>
+                  </div>
+                  {onVerifyPinForPlayer && (
+                    <button
+                      type="button"
+                      onClick={() => onVerifyPinForPlayer(playerName.trim())}
+                      className="self-start px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition flex items-center gap-1.5"
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Enter / Create PIN Code</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Tournament Name Drop Down List from Database */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-emerald-600">
+            <Trophy className="w-4 h-4" />
+            <span>Tournament Name</span>
+          </label>
+
+          {sortedTournaments.length > 0 ? (
+            <div className="relative">
+              <select
+                value={selectedTournamentId}
+                onChange={(e) => handleSelectTournament(e.target.value)}
+                onClick={() => {
+                  if (!isPinVerified && playerName && onVerifyPinForPlayer) {
+                    onVerifyPinForPlayer(playerName.trim());
+                  }
+                }}
+                required
+                disabled={!isPinVerified}
+                className={`w-full px-4 py-3.5 pr-10 rounded-2xl text-base font-bold transition appearance-none focus:outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isSunlight
+                    ? 'bg-yellow-100 border-2 border-black text-black focus:bg-white'
+                    : isDark
+                    ? 'bg-slate-900 border border-slate-800 text-slate-100 focus:border-emerald-500'
+                    : 'bg-white border border-slate-300 text-slate-900 focus:border-emerald-600 shadow-sm'
+                }`}
+                id="select-tournament-dropdown"
+              >
+                <option value="" className={isDark ? 'bg-slate-900 text-slate-400' : 'bg-white text-slate-500'}>
+                  {isPinVerified ? 'Select from Database' : '🔒 Enter PIN to Unlock Tournaments'}
+                </option>
+                {sortedTournaments.map((t) => (
+                  <option key={t.id} value={t.id} className={isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
+                    {t.name} {t.course_name ? `(${t.course_name})` : ''} {t.date ? `[${t.date}]` : ''}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-5 h-5 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 text-xs font-bold space-y-1">
+              <p>No tournaments stored in database.</p>
+              <p className="text-[11px] opacity-80 font-normal">
+                An administrator can add tournaments to the database via the Auth / Admin Portal.
+              </p>
+            </div>
           )}
         </div>
 
