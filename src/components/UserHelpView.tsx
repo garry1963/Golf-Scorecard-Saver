@@ -168,7 +168,7 @@ export const UserHelpView: React.FC<UserHelpViewProps> = ({
         </div>
 
         <p className="text-xs leading-relaxed opacity-90">
-          All scorecards and application settings (default player names, auto-save, CSV exports) are managed securely in the <strong>User & Admin Portal</strong> via the top bar.
+          Application settings (default player names, auto-save, CSV exports) are restricted and managed exclusively within the <strong>Admin Portal</strong> by authorized administrators.
         </p>
       </div>
 

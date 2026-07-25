@@ -365,20 +365,6 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('settings')}
-            className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'settings'
-                ? isSunlight
-                  ? 'bg-black text-white'
-                  : 'bg-emerald-600 text-white shadow-md'
-                : 'opacity-70 hover:opacity-100'
-            }`}
-          >
-            <SettingsIcon className="w-3.5 h-3.5" />
-            <span>Settings</span>
-          </button>
-
-          <button
             onClick={() => setActiveTab('login')}
             className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'login'
@@ -422,6 +408,19 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
 
           {isAdmin && (
             <>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'settings'
+                    ? isSunlight
+                      ? 'bg-black text-white'
+                      : 'bg-emerald-600 text-white shadow-md'
+                    : 'opacity-70 hover:opacity-100'
+                }`}
+              >
+                <SettingsIcon className="w-3.5 h-3.5" />
+                <span>Settings</span>
+              </button>
               <button
                 onClick={() => setActiveTab('pending')}
                 className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
@@ -501,8 +500,8 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
           </div>
         )}
 
-        {/* TAB 0B: Settings */}
-        {activeTab === 'settings' && settings && (
+        {/* TAB 0B: Settings (Admin Only) */}
+        {activeTab === 'settings' && isAdmin && settings && (
           <div className="space-y-4">
             <SettingsView
               settings={settings}
@@ -512,6 +511,21 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
               onClearAllData={onClearAllData || (() => {})}
               themeMode={themeMode}
             />
+          </div>
+        )}
+        {activeTab === 'settings' && !isAdmin && (
+          <div className="p-6 text-center space-y-3">
+            <Lock className="w-10 h-10 text-amber-500 mx-auto" />
+            <h3 className="text-base font-bold">Admin Portal Access Required</h3>
+            <p className="text-xs opacity-75 max-w-sm mx-auto">
+              Application Settings can only be accessed from within the Admin Portal by verified administrators.
+            </p>
+            <button
+              onClick={() => setActiveTab('login')}
+              className="mt-2 px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer"
+            >
+              Sign In as Admin
+            </button>
           </div>
         )}
 
