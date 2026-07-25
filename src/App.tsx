@@ -42,6 +42,7 @@ import { ScoreEntryView } from './components/ScoreEntryView';
 import { RoundSummaryView } from './components/RoundSummaryView';
 import { ViewRoundView } from './components/ViewRoundView';
 import { SettingsView } from './components/SettingsView';
+import { UserHelpView } from './components/UserHelpView';
 import { AdminApprovalModal } from './components/AdminApprovalModal';
 
 export default function App() {
@@ -50,7 +51,7 @@ export default function App() {
   const [rounds, setRounds] = useState<Round[]>(() => getStoredRounds());
   const [screenState, setScreenState] = useState<ScreenState>({
     type: 'tabs',
-    tab: 'scorecards',
+    tab: 'new_round',
   });
   const [importMessage, setImportMessage] = useState<string | null>(null);
 
@@ -380,7 +381,7 @@ export default function App() {
       );
     }
 
-    // Default Tabs (Scorecards, New Round, Settings)
+    // Default Tabs (New Round, User Help, Scorecards, Settings)
     switch (screenState.tab) {
       case 'new_round':
         return (
@@ -390,6 +391,13 @@ export default function App() {
             dbTournaments={dbTournaments}
             onStartRound={handleStartNewRound}
             themeMode={themeMode}
+          />
+        );
+      case 'help':
+        return (
+          <UserHelpView
+            themeMode={themeMode}
+            onOpenAuthPortal={() => setIsAdminModalOpen(true)}
           />
         );
       case 'settings':
@@ -442,7 +450,7 @@ export default function App() {
         {renderScreenContent()}
       </div>
 
-      {/* Bottom 3-Tab Navigation Bar */}
+      {/* Bottom Navigation Bar */}
       {showBottomNav && (
         <BottomNav
           activeTab={screenState.tab}
@@ -452,7 +460,7 @@ export default function App() {
         />
       )}
 
-      {/* Admin Review & User Auth Modal */}
+      {/* Admin Review & User Auth Portal Modal */}
       <AdminApprovalModal
         isOpen={isAdminModalOpen}
         onClose={() => setIsAdminModalOpen(false)}
@@ -460,6 +468,17 @@ export default function App() {
         onProfileUpdated={(prof) => setUserProfile(prof)}
         themeMode={themeMode}
         allRoundsCount={rounds.length}
+        rounds={rounds}
+        onContinueRound={handleContinueRound}
+        onViewRound={(roundId) => setScreenState({ type: 'view_round', roundId })}
+        onDeleteRound={handleDeleteRound}
+        onDuplicateRound={handleDuplicateRound}
+        onNewRoundClick={() => setScreenState({ type: 'tabs', tab: 'new_round' })}
+        settings={settings}
+        onSaveSettings={handleSaveSettings}
+        onExportCSV={handleExportCSV}
+        onImportCSV={handleImportCSV}
+        onClearAllData={handleClearAllData}
       />
     </MobileContainer>
   );

@@ -47,7 +47,7 @@ export interface AppSettings {
   hapticEnabled: boolean;
 }
 
-export type ActiveTab = 'scorecards' | 'new_round' | 'settings';
+export type ActiveTab = 'new_round' | 'help' | 'scorecards' | 'settings';
 
 export type ScreenState = 
   | { type: 'tabs'; tab: ActiveTab }

@@ -140,7 +140,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 type="text"
                 value={defaultPlayerName}
                 onChange={(e) => setDefaultPlayerName(e.target.value)}
-                placeholder="e.g. John Smith"
+                placeholder="Enter default player name"
                 className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition focus:outline-none ${
                   isSunlight
                     ? 'bg-yellow-200 border-black text-black'

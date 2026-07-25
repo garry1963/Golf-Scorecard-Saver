@@ -17,7 +17,11 @@ import {
   Trophy,
   Plus,
   Trash2,
+  ClipboardList,
+  Settings as SettingsIcon,
+  HelpCircle,
 } from 'lucide-react';
+import { UserHelpView } from './UserHelpView';
 import {
   auth,
   loginAdmin,
@@ -35,7 +39,9 @@ import {
   PendingUser,
   fetchUserProfile,
 } from '../lib/firebase';
-import { ThemeMode, Round, Tournament } from '../types';
+import { ThemeMode, Round, Tournament, AppSettings } from '../types';
+import { ScorecardsView } from './ScorecardsView';
+import { SettingsView } from './SettingsView';
 
 interface AdminApprovalModalProps {
   isOpen: boolean;
@@ -44,6 +50,21 @@ interface AdminApprovalModalProps {
   onProfileUpdated: (profile: UserProfile | null) => void;
   themeMode: ThemeMode;
   allRoundsCount?: number;
+
+  // Scorecards props
+  rounds?: Round[];
+  onContinueRound?: (roundId: string) => void;
+  onViewRound?: (roundId: string) => void;
+  onDeleteRound?: (roundId: string) => void;
+  onDuplicateRound?: (roundId: string) => void;
+  onNewRoundClick?: () => void;
+
+  // Settings props
+  settings?: AppSettings;
+  onSaveSettings?: (settings: AppSettings) => void;
+  onExportCSV?: () => void;
+  onImportCSV?: (file: File) => void;
+  onClearAllData?: () => void;
 }
 
 export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
@@ -53,8 +74,21 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   onProfileUpdated,
   themeMode,
   allRoundsCount = 0,
+
+  rounds = [],
+  onContinueRound,
+  onViewRound,
+  onDeleteRound,
+  onDuplicateRound,
+  onNewRoundClick,
+
+  settings,
+  onSaveSettings,
+  onExportCSV,
+  onImportCSV,
+  onClearAllData,
 }) => {
-  const [activeTab, setActiveTab] = useState<'pending' | 'users' | 'tournaments' | 'login' | 'request'>('login');
+  const [activeTab, setActiveTab] = useState<'scorecards' | 'settings' | 'help' | 'pending' | 'users' | 'tournaments' | 'login' | 'request'>('login');
   const [adminEmail, setAdminEmail] = useState('admin@golfscorecards.com');
   const [adminPass, setAdminPass] = useState('');
   const [requestName, setRequestName] = useState('');
@@ -72,6 +106,12 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   const isDark = themeMode === 'dark';
   const isSunlight = themeMode === 'sunlight';
   const isAdmin = currentUserProfile?.role === 'admin';
+
+  useEffect(() => {
+    if (!isAdmin && (activeTab === 'pending' || activeTab === 'users' || activeTab === 'tournaments')) {
+      setActiveTab('login');
+    }
+  }, [isAdmin, activeTab]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -202,7 +242,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-fadeIn">
       <div
-        className={`my-auto w-full max-w-lg rounded-3xl p-6 shadow-2xl transition-all border ${
+        className={`my-auto w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-3xl p-6 shadow-2xl transition-all border ${
           isSunlight
             ? 'bg-yellow-50 border-black text-black'
             : isDark
@@ -218,12 +258,10 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black tracking-tight">
-                {isAdmin ? 'Admin Portal' : 'User Access & Authentication'}
+                {isAdmin ? 'Admin Portal' : 'User & Admin Portal'}
               </h2>
               <p className="text-xs opacity-75">
-                {isAdmin
-                  ? 'Manage user access requests & database permissions'
-                  : 'Firebase Authentication & Request Approval'}
+                Scorecards, App Settings, Authentication & Administration
               </p>
             </div>
           </div>
@@ -238,6 +276,39 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
 
         {/* Top Navigation Tabs */}
         <div className="flex gap-1.5 p-1 rounded-2xl bg-slate-500/10 mb-5 text-xs font-bold overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('scorecards')}
+            className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'scorecards'
+                ? isSunlight
+                  ? 'bg-black text-white'
+                  : 'bg-emerald-600 text-white shadow-md'
+                : 'opacity-70 hover:opacity-100'
+            }`}
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            <span>Scorecards</span>
+            {rounds.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-600 font-black">
+                {rounds.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'settings'
+                ? isSunlight
+                  ? 'bg-black text-white'
+                  : 'bg-emerald-600 text-white shadow-md'
+                : 'opacity-70 hover:opacity-100'
+            }`}
+          >
+            <SettingsIcon className="w-3.5 h-3.5" />
+            <span>Settings</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('login')}
             className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
@@ -264,6 +335,20 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
           >
             <User className="w-3.5 h-3.5" />
             <span>Request Access</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('help')}
+            className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'help'
+                ? isSunlight
+                  ? 'bg-black text-white'
+                  : 'bg-emerald-600 text-white shadow-md'
+                : 'opacity-70 hover:opacity-100'
+            }`}
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>User Help</span>
           </button>
 
           {isAdmin && (
@@ -322,6 +407,54 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
             </>
           )}
         </div>
+
+        {/* TAB 0A: Scorecards */}
+        {activeTab === 'scorecards' && (
+          <div className="space-y-4">
+            <ScorecardsView
+              rounds={rounds}
+              onContinueRound={(id) => {
+                onClose();
+                if (onContinueRound) onContinueRound(id);
+              }}
+              onViewRound={(id) => {
+                onClose();
+                if (onViewRound) onViewRound(id);
+              }}
+              onDeleteRound={onDeleteRound || (() => {})}
+              onDuplicateRound={onDuplicateRound || (() => {})}
+              onNewRoundClick={() => {
+                onClose();
+                if (onNewRoundClick) onNewRoundClick();
+              }}
+              themeMode={themeMode}
+            />
+          </div>
+        )}
+
+        {/* TAB 0B: Settings */}
+        {activeTab === 'settings' && settings && (
+          <div className="space-y-4">
+            <SettingsView
+              settings={settings}
+              onSaveSettings={onSaveSettings || (() => {})}
+              onExportCSV={onExportCSV || (() => {})}
+              onImportCSV={onImportCSV || (() => {})}
+              onClearAllData={onClearAllData || (() => {})}
+              themeMode={themeMode}
+            />
+          </div>
+        )}
+
+        {/* TAB 0C: Help */}
+        {activeTab === 'help' && (
+          <div className="space-y-4">
+            <UserHelpView
+              themeMode={themeMode}
+              onOpenAuthPortal={() => setActiveTab('request')}
+            />
+          </div>
+        )}
 
         {/* TAB 1: Sign In / Auth */}
         {activeTab === 'login' && (
@@ -469,14 +602,14 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-                    Your Full Name / Player Name
+                    Player Name
                   </label>
                   <input
                     type="text"
                     required
                     value={requestName}
                     onChange={(e) => setRequestName(e.target.value)}
-                    placeholder="e.g. Garry Davies"
+                    placeholder="Enter player name"
                     className={`w-full px-4 py-3 rounded-2xl text-sm font-bold transition focus:outline-none ${
                       isSunlight
                         ? 'bg-yellow-100 border-2 border-black text-black'

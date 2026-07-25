@@ -18,7 +18,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   onStartRound,
   themeMode,
 }) => {
-  const [playerName, setPlayerName] = useState(defaultPlayerName || 'John Smith');
+  const [playerName, setPlayerName] = useState(defaultPlayerName || '');
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>('');
   const [tournamentName, setTournamentName] = useState<string>('');
   const [isCustomTournament, setIsCustomTournament] = useState<boolean>(false);
@@ -30,16 +30,25 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   const isSunlight = themeMode === 'sunlight';
   const isDark = themeMode === 'dark';
 
-  // Set default tournament from dbTournaments if available
+  // Sort tournaments by date in ascending order
+  const sortedTournaments = React.useMemo(() => {
+    return [...dbTournaments].sort((a, b) => {
+      const dateA = a.date || '';
+      const dateB = b.date || '';
+      return dateA.localeCompare(dateB);
+    });
+  }, [dbTournaments]);
+
+  // Set default tournament from sortedTournaments if available
   useEffect(() => {
-    if (dbTournaments.length > 0 && !selectedTournamentId && !isCustomTournament) {
-      setSelectedTournamentId(dbTournaments[0].id);
-      setTournamentName(dbTournaments[0].name);
+    if (sortedTournaments.length > 0 && !selectedTournamentId && !isCustomTournament) {
+      setSelectedTournamentId(sortedTournaments[0].id);
+      setTournamentName(sortedTournaments[0].name);
     } else if (dbTournaments.length === 0 && !isCustomTournament) {
       setIsCustomTournament(true);
       setTournamentName('Club Championship');
     }
-  }, [dbTournaments]);
+  }, [sortedTournaments]);
 
   const handleSelectTournament = (val: string) => {
     if (val === '__custom__') {
@@ -49,7 +58,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     } else {
       setIsCustomTournament(false);
       setSelectedTournamentId(val);
-      const found = dbTournaments.find((t) => t.id === val);
+      const found = sortedTournaments.find((t) => t.id === val);
       if (found) {
         setTournamentName(found.name);
       } else {
@@ -96,7 +105,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
             required
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="e.g. John Smith"
+            placeholder="Enter player name"
             className={`w-full px-4 py-3.5 rounded-2xl text-base font-bold transition focus:outline-none ${
               isSunlight
                 ? 'bg-yellow-100 border-2 border-black text-black placeholder-slate-500 focus:bg-white'
@@ -140,10 +149,10 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
               <span>Tournament Name</span>
             </label>
 
-            {dbTournaments.length > 0 && (
+            {sortedTournaments.length > 0 && (
               <button
                 type="button"
-                onClick={() => handleSelectTournament(isCustomTournament ? (dbTournaments[0]?.id || '') : '__custom__')}
+                onClick={() => handleSelectTournament(isCustomTournament ? (sortedTournaments[0]?.id || '') : '__custom__')}
                 className="text-xs text-emerald-600 hover:underline font-semibold flex items-center gap-1"
               >
                 {isCustomTournament ? 'Select from Database' : '+ Enter Custom Name'}
@@ -151,7 +160,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
             )}
           </div>
 
-          {!isCustomTournament && dbTournaments.length > 0 ? (
+          {!isCustomTournament && sortedTournaments.length > 0 ? (
             <div className="relative">
               <select
                 value={selectedTournamentId}
@@ -166,7 +175,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
                 }`}
                 id="select-tournament-dropdown"
               >
-                {dbTournaments.map((t) => (
+                {sortedTournaments.map((t) => (
                   <option key={t.id} value={t.id} className={isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
                     {t.name} {t.course_name ? `(${t.course_name})` : ''} {t.date ? `[${t.date}]` : ''}
                   </option>

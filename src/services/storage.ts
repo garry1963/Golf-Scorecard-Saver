@@ -166,9 +166,9 @@ export function saveSettings(settings: AppSettings): AppSettings {
 export function getRecentPlayers(): string[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.RECENT_PLAYERS);
-    return raw ? JSON.parse(raw) : ['John Smith', 'Tiger Woods', 'Rory McIlroy'];
+    return raw ? JSON.parse(raw) : [];
   } catch (err) {
-    return ['John Smith'];
+    return [];
   }
 }
 

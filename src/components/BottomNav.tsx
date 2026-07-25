@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClipboardList, PlusCircle, Settings as SettingsIcon } from 'lucide-react';
+import { PlusCircle, HelpCircle } from 'lucide-react';
 import { ActiveTab, ThemeMode } from '../types';
 
 interface BottomNavProps {
@@ -42,23 +42,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   };
 
   return (
-    <nav className={`w-full grid grid-cols-3 gap-1 px-3 py-2 sticky bottom-0 z-30 ${navClass}`}>
-      <button
-        onClick={() => onTabChange('scorecards')}
-        className={`flex flex-col items-center justify-center transition active:scale-95 min-h-[52px] ${getItemClass(
-          'scorecards'
-        )}`}
-        id="nav-btn-scorecards"
-      >
-        <div className="relative">
-          <ClipboardList className="w-6 h-6 stroke-[2.2]" />
-          {hasUnfinishedRound && (
-            <span className="absolute -top-1 -right-1.5 w-3 h-3 bg-amber-500 rounded-full ring-2 ring-white animate-pulse" />
-          )}
-        </div>
-        <span className="text-xs font-semibold mt-0.5 tracking-tight">Scorecards</span>
-      </button>
-
+    <nav className={`w-full grid grid-cols-2 gap-2 px-4 py-2 sticky bottom-0 z-30 ${navClass}`}>
       <button
         onClick={() => onTabChange('new_round')}
         className={`flex flex-col items-center justify-center transition active:scale-95 min-h-[52px] ${getItemClass(
@@ -66,20 +50,26 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         )}`}
         id="nav-btn-new-round"
       >
-        <PlusCircle className="w-6 h-6 stroke-[2.2]" />
+        <div className="relative">
+          <PlusCircle className="w-6 h-6 stroke-[2.2]" />
+          {hasUnfinishedRound && (
+            <span className="absolute -top-1 -right-1.5 w-3 h-3 bg-amber-500 rounded-full ring-2 ring-white animate-pulse" />
+          )}
+        </div>
         <span className="text-xs font-semibold mt-0.5 tracking-tight">New Round</span>
       </button>
 
       <button
-        onClick={() => onTabChange('settings')}
+        onClick={() => onTabChange('help')}
         className={`flex flex-col items-center justify-center transition active:scale-95 min-h-[52px] ${getItemClass(
-          'settings'
+          'help'
         )}`}
-        id="nav-btn-settings"
+        id="nav-btn-user-help"
       >
-        <SettingsIcon className="w-6 h-6 stroke-[2.2]" />
-        <span className="text-xs font-semibold mt-0.5 tracking-tight">Settings</span>
+        <HelpCircle className="w-6 h-6 stroke-[2.2]" />
+        <span className="text-xs font-semibold mt-0.5 tracking-tight">User Help</span>
       </button>
     </nav>
   );
 };
+
