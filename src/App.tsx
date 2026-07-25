@@ -37,7 +37,7 @@ import {
   deletePlayerPin,
   UserProfile,
 } from './lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 import { MobileContainer } from './components/MobileContainer';
 import { BottomNav } from './components/BottomNav';
@@ -67,9 +67,10 @@ export default function App() {
   const [dbTournaments, setDbTournaments] = useState<Tournament[]>([]);
   const [dbUsers, setDbUsers] = useState<UserProfile[]>([]);
 
-  // PIN Verification State
+  // PIN Verification State (Session-only: requires PIN re-entry on app restart)
   const [verifiedPlayerName, setVerifiedPlayerName] = useState<string | null>(() => {
-    return localStorage.getItem('golf_verified_player') || null;
+    localStorage.removeItem('golf_verified_player');
+    return sessionStorage.getItem('golf_verified_player') || null;
   });
   const [pinModalOpen, setPinModalOpen] = useState<boolean>(false);
   const [pinModalPlayerName, setPinModalPlayerName] = useState<string>('');
@@ -81,8 +82,26 @@ export default function App() {
 
   const handlePinVerified = (playerName: string) => {
     setVerifiedPlayerName(playerName);
-    localStorage.setItem('golf_verified_player', playerName);
+    sessionStorage.setItem('golf_verified_player', playerName);
+    localStorage.removeItem('golf_verified_player');
   };
+
+  // Sign out user and clear session PIN verification when app is closed or restarted
+  useEffect(() => {
+    const handleClose = () => {
+      sessionStorage.removeItem('golf_verified_player');
+      localStorage.removeItem('golf_verified_player');
+      signOut(auth).catch(() => {});
+    };
+
+    window.addEventListener('beforeunload', handleClose);
+    window.addEventListener('pagehide', handleClose);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleClose);
+      window.removeEventListener('pagehide', handleClose);
+    };
+  }, []);
 
   // Synchronize settings with storage
   useEffect(() => {
@@ -295,6 +314,7 @@ export default function App() {
 
     if (verifiedPlayerName && verifiedPlayerName.trim().toLowerCase() === nameToMatch) {
       setVerifiedPlayerName(null);
+      sessionStorage.removeItem('golf_verified_player');
       localStorage.removeItem('golf_verified_player');
     }
   };
@@ -313,6 +333,7 @@ export default function App() {
     // 3. Reset verified player name if matching
     if (verifiedPlayerName && verifiedPlayerName.trim().toLowerCase() === lowerName) {
       setVerifiedPlayerName(null);
+      sessionStorage.removeItem('golf_verified_player');
       localStorage.removeItem('golf_verified_player');
     }
 

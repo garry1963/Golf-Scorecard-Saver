@@ -1,6 +1,8 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getAuth,
+  setPersistence,
+  browserSessionPersistence,
   signInAnonymously,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -31,6 +33,10 @@ import { Round, Tournament } from '../types';
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+// Set auth persistence to browser session so closing app signs out user
+setPersistence(auth, browserSessionPersistence).catch((err) => {
+  console.warn('Set auth persistence error:', err);
+});
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
 
 export interface UserProfile {
