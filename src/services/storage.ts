@@ -170,13 +170,51 @@ export function saveSettings(settings: AppSettings): AppSettings {
   return settings;
 }
 
+// Sample player names to exclude from player dropdown
+export const SAMPLE_PLAYER_NAMES = [
+  'john doe',
+  'jane doe',
+  'tiger woods',
+  'sample player',
+  'sample user',
+  'player 1',
+  'player 2',
+  'test user',
+  'golf player',
+  'guest',
+];
+
 // Recent player & course autosuggestion helpers
 export function getRecentPlayers(): string[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.RECENT_PLAYERS);
-    return raw ? JSON.parse(raw) : [];
+    const parsed: string[] = raw ? JSON.parse(raw) : [];
+    return parsed.filter(
+      (p) => p && p.trim() && !SAMPLE_PLAYER_NAMES.includes(p.trim().toLowerCase())
+    );
   } catch (err) {
     return [];
+  }
+}
+
+export function removeRecentPlayer(playerName: string): void {
+  if (!playerName || !playerName.trim()) return;
+  const target = playerName.trim().toLowerCase();
+  try {
+    const recent = getRecentPlayers().filter((p) => p.trim().toLowerCase() !== target);
+    localStorage.setItem(STORAGE_KEYS.RECENT_PLAYERS, JSON.stringify(recent));
+
+    // Also remove PIN entry from local storage if present
+    const pinsRaw = localStorage.getItem('golf_player_pins');
+    if (pinsRaw) {
+      const pins = JSON.parse(pinsRaw);
+      if (pins[target]) {
+        delete pins[target];
+        localStorage.setItem('golf_player_pins', JSON.stringify(pins));
+      }
+    }
+  } catch (err) {
+    console.error('Error removing recent player:', err);
   }
 }
 

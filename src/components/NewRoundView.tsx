@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { RoundsCount, ThemeMode, Tournament } from '../types';
+import { UserProfile } from '../lib/firebase';
 import { User, Trophy, Play, ChevronDown, Plus, KeyRound, Lock, CheckCircle2 } from 'lucide-react';
-import { getRecentPlayers, getStoredRounds } from '../services/storage';
+import { getRecentPlayers, getStoredRounds, SAMPLE_PLAYER_NAMES } from '../services/storage';
 
 interface NewRoundViewProps {
   defaultPlayerName?: string;
@@ -13,6 +14,7 @@ interface NewRoundViewProps {
   onVerifyPinForPlayer?: (playerName: string) => void;
   userRole?: 'admin' | 'user';
   isApproved?: boolean;
+  registeredUsers?: UserProfile[];
 }
 
 export const NewRoundView: React.FC<NewRoundViewProps> = ({
@@ -25,6 +27,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   onVerifyPinForPlayer,
   userRole,
   isApproved,
+  registeredUsers = [],
 }) => {
   const [playerName, setPlayerName] = useState(defaultPlayerName || '');
   const [isCustomPlayer, setIsCustomPlayer] = useState<boolean>(false);
@@ -47,30 +50,55 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     );
   }, [isAdmin, verifiedPlayerName, playerName]);
 
-  // Gather unique available players from default, recent history, and stored rounds
+  // Gather unique available players from approved registered users, verified player name, active rounds, and recent players
   const availablePlayers = React.useMemo(() => {
     const list: string[] = [];
-    if (defaultPlayerName && defaultPlayerName.trim()) {
-      list.push(defaultPlayerName.trim());
-    }
-    const recent = getRecentPlayers();
-    recent.forEach((p) => {
-      if (p && p.trim() && !list.includes(p.trim())) {
-        list.push(p.trim());
+
+    const addIfValid = (name?: string | null) => {
+      if (!name) return;
+      const clean = name.trim();
+      if (
+        clean &&
+        !SAMPLE_PLAYER_NAMES.includes(clean.toLowerCase()) &&
+        !list.some((item) => item.toLowerCase() === clean.toLowerCase())
+      ) {
+        list.push(clean);
       }
-    });
+    };
+
+    // 1. Approved Registered Users from Firestore
+    if (registeredUsers && registeredUsers.length > 0) {
+      registeredUsers
+        .filter((u) => u.approved && u.displayName)
+        .forEach((u) => addIfValid(u.displayName));
+    }
+
+    // 2. Currently Verified Player Name
+    addIfValid(verifiedPlayerName);
+
+    // 3. Stored Rounds (only active rounds in localStorage/Firestore)
     try {
       const stored = getStoredRounds();
       stored.forEach((r) => {
-        if (r.player_name && r.player_name.trim() && !list.includes(r.player_name.trim())) {
-          list.push(r.player_name.trim());
-        }
+        addIfValid(r.player_name);
       });
     } catch (e) {
       // ignore
     }
+
+    // 4. Recent Players (sample names already filtered out)
+    const recent = getRecentPlayers();
+    recent.forEach((p) => {
+      addIfValid(p);
+    });
+
+    // 5. Default player name if explicitly specified and valid
+    if (defaultPlayerName) {
+      addIfValid(defaultPlayerName);
+    }
+
     return list;
-  }, [defaultPlayerName]);
+  }, [registeredUsers, verifiedPlayerName, defaultPlayerName]);
 
   // Set default player from availablePlayers if available and not custom
   useEffect(() => {

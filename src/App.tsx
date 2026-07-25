@@ -21,6 +21,7 @@ import {
   importRoundsFromCSV,
   clearAllData,
   calculateRoundTotals,
+  removeRecentPlayer,
 } from './services/storage';
 
 import {
@@ -31,6 +32,7 @@ import {
   saveRoundToFirestore,
   deleteRoundFromFirestore,
   listenToTournaments,
+  listenToAllUsers,
   UserProfile,
 } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -61,6 +63,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [dbTournaments, setDbTournaments] = useState<Tournament[]>([]);
+  const [dbUsers, setDbUsers] = useState<UserProfile[]>([]);
 
   // PIN Verification State
   const [verifiedPlayerName, setVerifiedPlayerName] = useState<string | null>(() => {
@@ -91,6 +94,14 @@ export default function App() {
       setDbTournaments(list);
     });
     return () => unsub();
+  }, []);
+
+  // Listen to registered users from Firestore
+  useEffect(() => {
+    const unsubUsers = listenToAllUsers((list) => {
+      setDbUsers(list);
+    });
+    return () => unsubUsers();
   }, []);
 
   // Firebase Auth State Listener
@@ -276,6 +287,10 @@ export default function App() {
     setRounds(updatedRounds);
     saveAllRounds(updatedRounds);
 
+    if (deletedUser.displayName) {
+      removeRecentPlayer(deletedUser.displayName);
+    }
+
     if (verifiedPlayerName && verifiedPlayerName.trim().toLowerCase() === nameToMatch) {
       setVerifiedPlayerName(null);
       localStorage.removeItem('golf_verified_player');
@@ -433,6 +448,7 @@ export default function App() {
             onVerifyPinForPlayer={handleOpenPinModal}
             userRole={userProfile?.role}
             isApproved={userProfile?.role === 'admin' || userProfile?.approved}
+            registeredUsers={dbUsers}
           />
         );
       case 'help':
