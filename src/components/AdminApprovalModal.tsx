@@ -23,6 +23,12 @@ import {
 } from 'lucide-react';
 import { UserHelpView } from './UserHelpView';
 import {
+  getRecentPlayers,
+  SAMPLE_PLAYER_NAMES,
+  getRemovedPlayerNames,
+  addRemovedPlayerName,
+} from '../services/storage';
+import {
   auth,
   loginAdmin,
   loginAdminWithGoogle,
@@ -67,6 +73,7 @@ interface AdminApprovalModalProps {
   onImportCSV?: (file: File) => void;
   onClearAllData?: () => void;
   onDeleteUserAndData?: (user: UserProfile) => void;
+  onRemovePlayerName?: (playerName: string) => void;
 }
 
 export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
@@ -90,6 +97,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   onImportCSV,
   onClearAllData,
   onDeleteUserAndData,
+  onRemovePlayerName,
 }) => {
   const [activeTab, setActiveTab] = useState<'scorecards' | 'settings' | 'help' | 'pending' | 'users' | 'tournaments' | 'login' | 'request'>('login');
   const [adminEmail, setAdminEmail] = useState('admin@golfscorecards.com');
@@ -105,6 +113,44 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   const [requestSuccess, setRequestSuccess] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [tournamentError, setTournamentError] = useState<string | null>(null);
+
+  const dropdownPlayerNames = React.useMemo(() => {
+    const list: string[] = [];
+    const removed = getRemovedPlayerNames().map((r) => r.toLowerCase());
+
+    const addIfValid = (name?: string | null) => {
+      if (!name) return;
+      const clean = name.trim();
+      const lower = clean.toLowerCase();
+      if (
+        clean &&
+        !SAMPLE_PLAYER_NAMES.includes(lower) &&
+        !removed.includes(lower) &&
+        !list.some((item) => item.toLowerCase() === lower)
+      ) {
+        list.push(clean);
+      }
+    };
+
+    allUsersList.forEach((u) => addIfValid(u.displayName));
+    rounds.forEach((r) => addIfValid(r.player_name));
+    getRecentPlayers().forEach((p) => addIfValid(p));
+
+    return list;
+  }, [allUsersList, rounds]);
+
+  const handleAdminRemovePlayerName = (nameToRemove: string) => {
+    if (
+      window.confirm(
+        `Admin Action: Are you sure you want to remove "${nameToRemove}" from the Player Name dropdown list?`
+      )
+    ) {
+      addRemovedPlayerName(nameToRemove);
+      if (onRemovePlayerName) {
+        onRemovePlayerName(nameToRemove);
+      }
+    }
+  };
 
   const isDark = themeMode === 'dark';
   const isSunlight = themeMode === 'sunlight';
@@ -770,6 +816,43 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Player Name Dropdown List Management */}
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                <span>Player Dropdown Names ({dropdownPlayerNames.length})</span>
+                <span className="text-[10px] text-slate-400 font-normal">Remove individual names</span>
+              </div>
+
+              {dropdownPlayerNames.length === 0 ? (
+                <div className="text-xs opacity-60 p-2 italic">No custom player names found in dropdown list.</div>
+              ) : (
+                <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                  {dropdownPlayerNames.map((name) => (
+                    <div
+                      key={name}
+                      className={`p-2.5 rounded-xl border flex items-center justify-between text-xs ${
+                        isDark ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      <div className="font-bold flex items-center gap-2">
+                        <User className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAdminRemovePlayerName(name)}
+                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 transition active:scale-95 flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+                        title={`Remove ${name} from player dropdown list`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

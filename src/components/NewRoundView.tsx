@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { RoundsCount, ThemeMode, Tournament } from '../types';
 import { UserProfile } from '../lib/firebase';
-import { User, Trophy, Play, ChevronDown, Plus, KeyRound, Lock, CheckCircle2 } from 'lucide-react';
-import { getRecentPlayers, getStoredRounds, SAMPLE_PLAYER_NAMES } from '../services/storage';
+import { User, Trophy, Play, ChevronDown, Plus, KeyRound, Lock, CheckCircle2, Trash2 } from 'lucide-react';
+import {
+  getRecentPlayers,
+  getStoredRounds,
+  SAMPLE_PLAYER_NAMES,
+  getRemovedPlayerNames,
+  addRemovedPlayerName,
+} from '../services/storage';
 
 interface NewRoundViewProps {
   defaultPlayerName?: string;
@@ -15,6 +21,7 @@ interface NewRoundViewProps {
   userRole?: 'admin' | 'user';
   isApproved?: boolean;
   registeredUsers?: UserProfile[];
+  onRemovePlayerName?: (playerName: string) => void;
 }
 
 export const NewRoundView: React.FC<NewRoundViewProps> = ({
@@ -28,6 +35,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   userRole,
   isApproved,
   registeredUsers = [],
+  onRemovePlayerName,
 }) => {
   const [playerName, setPlayerName] = useState(defaultPlayerName || '');
   const [isCustomPlayer, setIsCustomPlayer] = useState<boolean>(false);
@@ -53,14 +61,17 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   // Gather unique available players from approved registered users, verified player name, active rounds, and recent players
   const availablePlayers = React.useMemo(() => {
     const list: string[] = [];
+    const removed = getRemovedPlayerNames().map((r) => r.toLowerCase());
 
     const addIfValid = (name?: string | null) => {
       if (!name) return;
       const clean = name.trim();
+      const lower = clean.toLowerCase();
       if (
         clean &&
-        !SAMPLE_PLAYER_NAMES.includes(clean.toLowerCase()) &&
-        !list.some((item) => item.toLowerCase() === clean.toLowerCase())
+        !SAMPLE_PLAYER_NAMES.includes(lower) &&
+        !removed.includes(lower) &&
+        !list.some((item) => item.toLowerCase() === lower)
       ) {
         list.push(clean);
       }
@@ -142,6 +153,24 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       // Prompt PIN code for the selected player if not verified
       if (!isAdmin && (!verifiedPlayerName || verifiedPlayerName.trim().toLowerCase() !== selectedName.trim().toLowerCase())) {
         onVerifyPinForPlayer(selectedName.trim());
+      }
+    }
+  };
+
+  const handleRemovePlayerFromList = (nameToRemove: string) => {
+    if (!nameToRemove || !nameToRemove.trim()) return;
+    const clean = nameToRemove.trim();
+    if (
+      window.confirm(
+        `Admin Action: Are you sure you want to remove "${clean}" from the player name dropdown list?`
+      )
+    ) {
+      addRemovedPlayerName(clean);
+      if (onRemovePlayerName) {
+        onRemovePlayerName(clean);
+      }
+      if (playerName.trim().toLowerCase() === clean.toLowerCase()) {
+        setPlayerName('');
       }
     }
   };
@@ -263,6 +292,21 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
               }`}
               id="input-player-name"
             />
+          )}
+
+          {/* Admin Option to Remove Selected Player Name from Dropdown */}
+          {isAdmin && !isCustomPlayer && playerName.trim() && availablePlayers.includes(playerName) && (
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => handleRemovePlayerFromList(playerName)}
+                className="text-xs text-rose-500 hover:text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20 transition active:scale-95 cursor-pointer"
+                title={`Remove ${playerName} from dropdown list`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Remove "{playerName}" from Dropdown (Admin)</span>
+              </button>
+            </div>
           )}
 
           {/* PIN Verification Status Banner */}

@@ -184,13 +184,50 @@ export const SAMPLE_PLAYER_NAMES = [
   'guest',
 ];
 
+// Removed / Blacklisted player names helpers (for Admin removal)
+export function getRemovedPlayerNames(): string[] {
+  try {
+    const raw = localStorage.getItem('golf_removed_players');
+    return raw ? JSON.parse(raw) : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+export function addRemovedPlayerName(playerName: string): void {
+  if (!playerName || !playerName.trim()) return;
+  const target = playerName.trim();
+  const lower = target.toLowerCase();
+  try {
+    const list = getRemovedPlayerNames().filter((p) => p.toLowerCase() !== lower);
+    list.push(target);
+    localStorage.setItem('golf_removed_players', JSON.stringify(list));
+    removeRecentPlayer(target);
+  } catch (err) {
+    console.error('Error adding removed player name:', err);
+  }
+}
+
+export function clearRemovedPlayerNames(): void {
+  try {
+    localStorage.removeItem('golf_removed_players');
+  } catch (err) {
+    console.error('Error clearing removed players:', err);
+  }
+}
+
 // Recent player & course autosuggestion helpers
 export function getRecentPlayers(): string[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.RECENT_PLAYERS);
     const parsed: string[] = raw ? JSON.parse(raw) : [];
+    const removed = getRemovedPlayerNames().map((r) => r.toLowerCase());
     return parsed.filter(
-      (p) => p && p.trim() && !SAMPLE_PLAYER_NAMES.includes(p.trim().toLowerCase())
+      (p) =>
+        p &&
+        p.trim() &&
+        !SAMPLE_PLAYER_NAMES.includes(p.trim().toLowerCase()) &&
+        !removed.includes(p.trim().toLowerCase())
     );
   } catch (err) {
     return [];

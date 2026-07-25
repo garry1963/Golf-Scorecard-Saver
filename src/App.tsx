@@ -22,6 +22,7 @@ import {
   clearAllData,
   calculateRoundTotals,
   removeRecentPlayer,
+  addRemovedPlayerName,
 } from './services/storage';
 
 import {
@@ -33,6 +34,7 @@ import {
   deleteRoundFromFirestore,
   listenToTournaments,
   listenToAllUsers,
+  deletePlayerPin,
   UserProfile,
 } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -297,6 +299,27 @@ export default function App() {
     }
   };
 
+  const handleRemovePlayerName = async (playerName: string) => {
+    if (!playerName || !playerName.trim()) return;
+    const cleanName = playerName.trim();
+    const lowerName = cleanName.toLowerCase();
+
+    // 1. Add to local removed list & clean recent player storage
+    addRemovedPlayerName(cleanName);
+
+    // 2. Delete player PIN from Firestore & LocalStorage
+    await deletePlayerPin(cleanName);
+
+    // 3. Reset verified player name if matching
+    if (verifiedPlayerName && verifiedPlayerName.trim().toLowerCase() === lowerName) {
+      setVerifiedPlayerName(null);
+      localStorage.removeItem('golf_verified_player');
+    }
+
+    // 4. Force state update
+    setRounds((prev) => [...prev]);
+  };
+
   const handleDuplicateRound = (roundId: string) => {
     const duplicated = duplicateRound(roundId);
     if (duplicated) {
@@ -449,6 +472,7 @@ export default function App() {
             userRole={userProfile?.role}
             isApproved={userProfile?.role === 'admin' || userProfile?.approved}
             registeredUsers={dbUsers}
+            onRemovePlayerName={handleRemovePlayerName}
           />
         );
       case 'help':
@@ -557,6 +581,7 @@ export default function App() {
         onImportCSV={handleImportCSV}
         onClearAllData={handleClearAllData}
         onDeleteUserAndData={handleDeleteUserAndData}
+        onRemovePlayerName={handleRemovePlayerName}
       />
     </MobileContainer>
   );

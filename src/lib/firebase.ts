@@ -474,6 +474,32 @@ export async function setPlayerPin(playerName: string, pin: string, uid?: string
   }
 }
 
+export async function deletePlayerPin(playerName: string): Promise<void> {
+  if (!playerName || !playerName.trim()) return;
+  const cleanName = playerName.trim().toLowerCase();
+
+  // 1. Remove from LocalStorage
+  try {
+    const raw = localStorage.getItem('golf_player_pins');
+    if (raw) {
+      const map = JSON.parse(raw);
+      if (map[cleanName]) {
+        delete map[cleanName];
+        localStorage.setItem('golf_player_pins', JSON.stringify(map));
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // 2. Remove from Firestore
+  try {
+    await deleteDoc(doc(db, 'player_pins', cleanName));
+  } catch (err) {
+    console.warn('Firestore deletePlayerPin error:', err);
+  }
+}
+
 // Subscribe to real-time round updates
 export function listenToRounds(
   userId: string,
