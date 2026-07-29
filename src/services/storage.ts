@@ -216,18 +216,32 @@ export function clearRemovedPlayerNames(): void {
   }
 }
 
+export function isAdminPlayerName(name?: string | null): boolean {
+  if (!name || !name.trim()) return true;
+  const lower = name.trim().toLowerCase();
+  return (
+    lower === 'administrator' ||
+    lower === 'admin' ||
+    lower.startsWith('admin') ||
+    lower.startsWith('administrator') ||
+    lower.includes('google session') ||
+    lower.includes('session mode') ||
+    lower.includes('garrydavies1963@gmail.com') ||
+    lower.includes('admin@')
+  );
+}
+
 // Recent player & course autosuggestion helpers
 export function getRecentPlayers(): string[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.RECENT_PLAYERS);
     const parsed: string[] = raw ? JSON.parse(raw) : [];
     const removed = getRemovedPlayerNames().map((r) => r.toLowerCase());
-    const adminNames = ['administrator', 'admin', 'administrator (google session)', 'garrydavies1963@gmail.com'];
     return parsed.filter(
       (p) =>
         p &&
         p.trim() &&
-        !adminNames.includes(p.trim().toLowerCase()) &&
+        !isAdminPlayerName(p) &&
         !SAMPLE_PLAYER_NAMES.includes(p.trim().toLowerCase()) &&
         !removed.includes(p.trim().toLowerCase())
     );
@@ -267,8 +281,7 @@ export function getRecentCourses(): string[] {
 }
 
 function saveRecentPlayerAndCourse(player: string, course: string) {
-  const adminNames = ['administrator', 'admin', 'administrator (google session)', 'garrydavies1963@gmail.com'];
-  if (player.trim() && !adminNames.includes(player.trim().toLowerCase())) {
+  if (player.trim() && !isAdminPlayerName(player)) {
     const players = getRecentPlayers().filter((p) => p.toLowerCase() !== player.trim().toLowerCase());
     players.unshift(player.trim());
     localStorage.setItem(STORAGE_KEYS.RECENT_PLAYERS, JSON.stringify(players.slice(0, 10)));

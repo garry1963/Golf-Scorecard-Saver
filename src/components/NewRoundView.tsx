@@ -8,6 +8,7 @@ import {
   SAMPLE_PLAYER_NAMES,
   getRemovedPlayerNames,
   addRemovedPlayerName,
+  isAdminPlayerName,
 } from '../services/storage';
 
 interface NewRoundViewProps {
@@ -39,7 +40,12 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   onRemovePlayerName,
   onRequestAccess,
 }) => {
-  const [playerName, setPlayerName] = useState(defaultPlayerName || '');
+  const [playerName, setPlayerName] = useState(() => {
+    if (defaultPlayerName && !isAdminPlayerName(defaultPlayerName)) {
+      return defaultPlayerName;
+    }
+    return '';
+  });
   const [isCustomPlayer, setIsCustomPlayer] = useState<boolean>(false);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>('');
   const [tournamentName, setTournamentName] = useState<string>('');
@@ -70,18 +76,16 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   const availablePlayers = React.useMemo(() => {
     const list: string[] = [];
     const removed = getRemovedPlayerNames().map((r) => r.toLowerCase());
-    const adminNames = ['administrator', 'admin', 'administrator (google session)', 'garrydavies1963@gmail.com'];
 
     const addIfValid = (name?: string | null) => {
       if (!name) return;
       const clean = name.trim();
-      const lower = clean.toLowerCase();
       if (
         clean &&
-        !adminNames.includes(lower) &&
-        !SAMPLE_PLAYER_NAMES.includes(lower) &&
-        !removed.includes(lower) &&
-        !list.some((item) => item.toLowerCase() === lower)
+        !isAdminPlayerName(clean) &&
+        !SAMPLE_PLAYER_NAMES.includes(clean.toLowerCase()) &&
+        !removed.includes(clean.toLowerCase()) &&
+        !list.some((item) => item.toLowerCase() === clean.toLowerCase())
       ) {
         list.push(clean);
       }
@@ -95,7 +99,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     }
 
     // 2. Currently Verified Player Name (if not admin)
-    if (!isAdmin) {
+    if (!isAdmin && verifiedPlayerName && !isAdminPlayerName(verifiedPlayerName)) {
       addIfValid(verifiedPlayerName);
     }
 
@@ -116,7 +120,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     });
 
     // 5. Default player name if explicitly specified and valid
-    if (defaultPlayerName) {
+    if (defaultPlayerName && !isAdminPlayerName(defaultPlayerName)) {
       addIfValid(defaultPlayerName);
     }
 
@@ -125,11 +129,13 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
 
   // Set default player from availablePlayers if available and not custom
   useEffect(() => {
-    if (availablePlayers.length > 0 && !playerName && !isCustomPlayer) {
-      const firstPlayer = verifiedPlayerName || availablePlayers[0];
-      setPlayerName(firstPlayer);
+    if (availablePlayers.length > 0 && (!playerName || isAdminPlayerName(playerName)) && !isCustomPlayer) {
+      const validFirst = (verifiedPlayerName && !isAdminPlayerName(verifiedPlayerName)) ? verifiedPlayerName : availablePlayers[0];
+      if (validFirst) {
+        setPlayerName(validFirst);
+      }
     }
-  }, [availablePlayers, verifiedPlayerName]);
+  }, [availablePlayers, verifiedPlayerName, playerName, isCustomPlayer]);
 
   // Sort tournaments by date in ascending order
   const sortedTournaments = React.useMemo(() => {

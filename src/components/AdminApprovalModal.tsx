@@ -27,6 +27,7 @@ import {
   SAMPLE_PLAYER_NAMES,
   getRemovedPlayerNames,
   addRemovedPlayerName,
+  isAdminPlayerName,
 } from '../services/storage';
 import {
   auth,
@@ -124,6 +125,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
       const lower = clean.toLowerCase();
       if (
         clean &&
+        !isAdminPlayerName(clean) &&
         !SAMPLE_PLAYER_NAMES.includes(lower) &&
         !removed.includes(lower) &&
         !list.some((item) => item.toLowerCase() === lower)
@@ -132,7 +134,9 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
       }
     };
 
-    allUsersList.forEach((u) => addIfValid(u.displayName));
+    allUsersList
+      .filter((u) => u.role !== 'admin' && u.email?.toLowerCase() !== 'garrydavies1963@gmail.com')
+      .forEach((u) => addIfValid(u.displayName));
     rounds.forEach((r) => addIfValid(r.player_name));
     getRecentPlayers().forEach((p) => addIfValid(p));
 
