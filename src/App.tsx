@@ -669,6 +669,8 @@ export default function App() {
         themeMode={themeMode}
         allRoundsCount={rounds.length}
         rounds={rounds}
+        verifiedPlayerName={verifiedPlayerName}
+        registeredUsers={dbUsers}
         onContinueRound={handleContinueRound}
         onViewRound={(roundId) => setScreenState({ type: 'view_round', roundId })}
         onDeleteRound={handleDeleteRound}

@@ -62,6 +62,8 @@ interface AdminApprovalModalProps {
 
   // Scorecards props
   rounds?: Round[];
+  verifiedPlayerName?: string | null;
+  registeredUsers?: UserProfile[];
   onContinueRound?: (roundId: string) => void;
   onViewRound?: (roundId: string) => void;
   onDeleteRound?: (roundId: string) => void;
@@ -87,6 +89,8 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   allRoundsCount = 0,
 
   rounds = [],
+  verifiedPlayerName,
+  registeredUsers,
   onContinueRound,
   onViewRound,
   onDeleteRound,
@@ -521,6 +525,11 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
           <div className="space-y-4">
             <ScorecardsView
               rounds={rounds}
+              userRole={currentUserProfile?.role}
+              isApproved={currentUserProfile?.role === 'admin' || currentUserProfile?.approved}
+              verifiedPlayerName={verifiedPlayerName}
+              currentUserProfile={currentUserProfile}
+              registeredUsers={registeredUsers || allUsersList}
               onContinueRound={(id) => {
                 onClose();
                 if (onContinueRound) onContinueRound(id);
