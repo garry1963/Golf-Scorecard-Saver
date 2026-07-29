@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Round, ThemeMode } from '../types';
+import { UserProfile } from '../lib/firebase';
+import { isAdminPlayerName } from '../services/storage';
 import {
   Search,
   Calendar,
@@ -30,6 +32,8 @@ interface ScorecardsViewProps {
   userRole?: 'admin' | 'user';
   isApproved?: boolean;
   verifiedPlayerName?: string | null;
+  currentUserProfile?: UserProfile | null;
+  registeredUsers?: UserProfile[];
   onOpenPinModal?: () => void;
   onRequestAccess?: () => void;
 }
@@ -47,6 +51,8 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
   userRole,
   isApproved,
   verifiedPlayerName,
+  currentUserProfile,
+  registeredUsers = [],
   onOpenPinModal,
   onRequestAccess,
 }) => {
@@ -58,18 +64,27 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
   const isDark = themeMode === 'dark';
   const isAdmin = userRole === 'admin';
 
+  // Compute active verified name: verified PIN name, or approved logged-in user displayName
+  const activeVerifiedName = React.useMemo(() => {
+    if (verifiedPlayerName) return verifiedPlayerName;
+    if (isApproved && currentUserProfile?.displayName && !isAdminPlayerName(currentUserProfile.displayName)) {
+      return currentUserProfile.displayName;
+    }
+    return null;
+  }, [verifiedPlayerName, isApproved, currentUserProfile]);
+
   // Privacy Rule Filtering:
-  // Admin sees ALL scorecards. Approved users with verified PIN code only see scorecards matching their Player Name.
+  // Admin sees ALL scorecards. Approved users see scorecards matching their Player Name.
   const userRounds = React.useMemo(() => {
     if (isAdmin) {
       return rounds;
     }
-    if (isApproved && verifiedPlayerName) {
-      const cleanVerified = verifiedPlayerName.trim().toLowerCase();
+    if (isApproved && activeVerifiedName) {
+      const cleanVerified = activeVerifiedName.trim().toLowerCase();
       return rounds.filter((r) => (r.player_name || '').trim().toLowerCase() === cleanVerified);
     }
     return [];
-  }, [rounds, isAdmin, isApproved, verifiedPlayerName]);
+  }, [rounds, isAdmin, isApproved, activeVerifiedName]);
 
   // Filter & Sort
   const filteredRounds = userRounds
@@ -93,8 +108,8 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
 
-  // Render Access Restricted screen for Guest / Pending / Unverified Users
-  if (!isAdmin && (!isApproved || !verifiedPlayerName)) {
+  // Render Access Restricted screen ONLY if not admin AND (not approved OR no verified player name)
+  if (!isAdmin && (!isApproved || !activeVerifiedName)) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
         <div className="w-16 h-16 rounded-3xl bg-amber-500/15 flex items-center justify-center text-amber-500 mb-1">
@@ -106,14 +121,14 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
           <p className="text-xs opacity-75 mt-1 max-w-sm mx-auto leading-relaxed">
             {!isApproved
               ? 'Pending / Guest users do not have access to view or edit scorecards. Once an administrator approves your account, you can set up your 4-digit PIN code to access your scorecards.'
-              : 'Please enter your 4-digit PIN code for your Player Name to unlock and view your personal scorecards.'}
+              : 'Please select your Player Name or enter your 4-digit PIN code to unlock and view your personal scorecards.'}
           </p>
         </div>
 
         {!isApproved && onRequestAccess && (
           <button
             onClick={onRequestAccess}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs shadow-lg transition active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs shadow-lg transition active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20 cursor-pointer"
           >
             <User className="w-4 h-4" />
             <span>Request Access from Admin</span>
@@ -123,7 +138,7 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
         {isApproved && onOpenPinModal && (
           <button
             onClick={onOpenPinModal}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm shadow-lg transition active:scale-95 ${
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm shadow-lg transition active:scale-95 cursor-pointer ${
               isSunlight
                 ? 'bg-black text-white hover:bg-slate-900 border-2 border-black'
                 : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20'
@@ -152,7 +167,7 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
               </span>
             ) : (
               <span className="text-emerald-600 font-bold flex items-center gap-1">
-                <User className="w-3 h-3" /> {verifiedPlayerName}'s Scorecards ({userRounds.length})
+                <User className="w-3 h-3" /> {activeVerifiedName}'s Scorecards ({userRounds.length})
               </span>
             )}
           </p>

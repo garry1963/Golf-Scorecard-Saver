@@ -23,6 +23,7 @@ import {
   calculateRoundTotals,
   removeRecentPlayer,
   addRemovedPlayerName,
+  isAdminPlayerName,
 } from './services/storage';
 
 import {
@@ -145,6 +146,24 @@ export default function App() {
     });
     return () => unsubAuth();
   }, []);
+
+  // Automatically sync verifiedPlayerName for approved authenticated users
+  useEffect(() => {
+    if (
+      userProfile &&
+      (userProfile.approved || userProfile.role === 'admin') &&
+      userProfile.displayName &&
+      !isAdminPlayerName(userProfile.displayName)
+    ) {
+      setVerifiedPlayerName((prev) => {
+        if (!prev) {
+          sessionStorage.setItem('golf_verified_player', userProfile.displayName!);
+          return userProfile.displayName!;
+        }
+        return prev;
+      });
+    }
+  }, [userProfile]);
 
   // Listen to Firestore real-time scorecards database
   useEffect(() => {
@@ -510,6 +529,7 @@ export default function App() {
             onStartRound={handleStartNewRound}
             themeMode={themeMode}
             verifiedPlayerName={verifiedPlayerName}
+            currentUserProfile={userProfile}
             onVerifyPinForPlayer={handleOpenPinModal}
             userRole={userProfile?.role}
             isApproved={userProfile?.role === 'admin' || userProfile?.approved}
@@ -573,6 +593,8 @@ export default function App() {
             userRole={userProfile?.role}
             isApproved={userProfile?.role === 'admin' || userProfile?.approved}
             verifiedPlayerName={verifiedPlayerName}
+            currentUserProfile={userProfile}
+            registeredUsers={dbUsers}
             onOpenPinModal={() =>
               handleOpenPinModal(
                 verifiedPlayerName || userProfile?.displayName || settings.defaultPlayerName || 'Player'
@@ -617,7 +639,7 @@ export default function App() {
           onTabChange={(tab) => setScreenState({ type: 'tabs', tab })}
           themeMode={themeMode}
           hasUnfinishedRound={!!unfinishedRound}
-          isSignedWithPin={Boolean(verifiedPlayerName) || userProfile?.role === 'admin'}
+          isSignedWithPin={Boolean(verifiedPlayerName) || userProfile?.role === 'admin' || Boolean(userProfile?.approved)}
         />
       )}
 

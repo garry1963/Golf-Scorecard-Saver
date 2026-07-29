@@ -19,6 +19,7 @@ interface NewRoundViewProps {
   onStartRound: (playerName: string, tournamentName: string, numRounds: RoundsCount) => void;
   themeMode: ThemeMode;
   verifiedPlayerName?: string | null;
+  currentUserProfile?: UserProfile | null;
   onVerifyPinForPlayer?: (playerName: string) => void;
   userRole?: 'admin' | 'user';
   isApproved?: boolean;
@@ -35,6 +36,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   onStartRound,
   themeMode,
   verifiedPlayerName,
+  currentUserProfile,
   onVerifyPinForPlayer,
   userRole,
   isApproved,
@@ -43,6 +45,12 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   onRequestAccess,
 }) => {
   const [playerName, setPlayerName] = useState(() => {
+    if (verifiedPlayerName && !isAdminPlayerName(verifiedPlayerName)) {
+      return verifiedPlayerName;
+    }
+    if (currentUserProfile?.displayName && !isAdminPlayerName(currentUserProfile.displayName)) {
+      return currentUserProfile.displayName;
+    }
     if (defaultPlayerName && !isAdminPlayerName(defaultPlayerName)) {
       return defaultPlayerName;
     }
@@ -68,11 +76,19 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   const isPinVerified = React.useMemo(() => {
     if (isAdmin) return true;
     if (!playerName || !playerName.trim()) return false;
+    const cleanPlayer = playerName.trim().toLowerCase();
+    if (
+      isApproved &&
+      currentUserProfile?.displayName &&
+      currentUserProfile.displayName.trim().toLowerCase() === cleanPlayer
+    ) {
+      return true;
+    }
     return (
       Boolean(verifiedPlayerName) &&
-      verifiedPlayerName!.trim().toLowerCase() === playerName.trim().toLowerCase()
+      verifiedPlayerName!.trim().toLowerCase() === cleanPlayer
     );
-  }, [isAdmin, verifiedPlayerName, playerName]);
+  }, [isAdmin, verifiedPlayerName, playerName, isApproved, currentUserProfile]);
 
   // Gather unique available players from approved registered users, verified player name, active rounds, and recent players (strictly excluding Administrator)
   const availablePlayers = React.useMemo(() => {
