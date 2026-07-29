@@ -77,6 +77,8 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     if (isAdmin) return true;
     if (!playerName || !playerName.trim()) return false;
     const cleanPlayer = playerName.trim().toLowerCase();
+
+    // Check 1: Approved authenticated user matching display name
     if (
       isApproved &&
       currentUserProfile?.displayName &&
@@ -84,11 +86,21 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     ) {
       return true;
     }
+
+    // Check 2: Registered user in db is approved and matches cleanPlayer
+    const regUser = registeredUsers.find(
+      (u) => u.displayName && u.displayName.trim().toLowerCase() === cleanPlayer
+    );
+    if (regUser && regUser.approved !== false && isApproved) {
+      return true;
+    }
+
+    // Check 3: Verified PIN in current session
     return (
       Boolean(verifiedPlayerName) &&
       verifiedPlayerName!.trim().toLowerCase() === cleanPlayer
     );
-  }, [isAdmin, verifiedPlayerName, playerName, isApproved, currentUserProfile]);
+  }, [isAdmin, verifiedPlayerName, playerName, isApproved, currentUserProfile, registeredUsers]);
 
   // Gather unique available players from approved registered users, verified player name, active rounds, and recent players (strictly excluding Administrator)
   const availablePlayers = React.useMemo(() => {
@@ -191,8 +203,14 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     setPlayerName(selectedName);
     setError(null);
     if (selectedName && selectedName.trim() && onVerifyPinForPlayer) {
-      // Prompt PIN code for the selected player if not verified
-      if (!isAdmin && (!verifiedPlayerName || verifiedPlayerName.trim().toLowerCase() !== selectedName.trim().toLowerCase())) {
+      const cleanSelected = selectedName.trim().toLowerCase();
+      const isAlreadyVerified =
+        isAdmin ||
+        (isApproved && currentUserProfile?.displayName?.trim().toLowerCase() === cleanSelected) ||
+        (verifiedPlayerName && verifiedPlayerName.trim().toLowerCase() === cleanSelected) ||
+        registeredUsers.some((u) => u.displayName?.trim().toLowerCase() === cleanSelected && u.approved !== false && isApproved);
+
+      if (!isAlreadyVerified) {
         onVerifyPinForPlayer(selectedName.trim());
       }
     }
@@ -327,10 +345,8 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               onBlur={() => {
-                if (playerName.trim() && onVerifyPinForPlayer) {
-                  if (!isAdmin && (!verifiedPlayerName || verifiedPlayerName.trim().toLowerCase() !== playerName.trim().toLowerCase())) {
-                    onVerifyPinForPlayer(playerName.trim());
-                  }
+                if (playerName.trim() && onVerifyPinForPlayer && !isPinVerified) {
+                  onVerifyPinForPlayer(playerName.trim());
                 }
               }}
               placeholder="Enter player name"

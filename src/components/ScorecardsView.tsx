@@ -66,12 +66,21 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
 
   // Compute active verified name: verified PIN name, or approved logged-in user displayName
   const activeVerifiedName = React.useMemo(() => {
-    if (verifiedPlayerName) return verifiedPlayerName;
-    if (isApproved && currentUserProfile?.displayName && !isAdminPlayerName(currentUserProfile.displayName)) {
+    if (verifiedPlayerName && !isAdminPlayerName(verifiedPlayerName)) return verifiedPlayerName;
+    if (currentUserProfile?.displayName && !isAdminPlayerName(currentUserProfile.displayName)) {
       return currentUserProfile.displayName;
     }
     return null;
-  }, [verifiedPlayerName, isApproved, currentUserProfile]);
+  }, [verifiedPlayerName, currentUserProfile]);
+
+  // Overall approval check
+  const isUserApproved = React.useMemo(() => {
+    if (isAdmin) return true;
+    if (isApproved) return true;
+    if (currentUserProfile?.approved) return true;
+    if (activeVerifiedName) return true;
+    return false;
+  }, [isAdmin, isApproved, currentUserProfile, activeVerifiedName]);
 
   // Privacy Rule Filtering:
   // Admin sees ALL scorecards. Approved users see scorecards matching their Player Name.
@@ -79,12 +88,12 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
     if (isAdmin) {
       return rounds;
     }
-    if (isApproved && activeVerifiedName) {
+    if (activeVerifiedName) {
       const cleanVerified = activeVerifiedName.trim().toLowerCase();
       return rounds.filter((r) => (r.player_name || '').trim().toLowerCase() === cleanVerified);
     }
     return [];
-  }, [rounds, isAdmin, isApproved, activeVerifiedName]);
+  }, [rounds, isAdmin, activeVerifiedName]);
 
   // Filter & Sort
   const filteredRounds = userRounds
@@ -108,8 +117,8 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
 
-  // Render Access Restricted screen ONLY if not admin AND (not approved OR no verified player name)
-  if (!isAdmin && (!isApproved || !activeVerifiedName)) {
+  // 1. Unapproved / Pending / Guest users view
+  if (!isAdmin && !isUserApproved) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
         <div className="w-16 h-16 rounded-3xl bg-amber-500/15 flex items-center justify-center text-amber-500 mb-1">
@@ -117,15 +126,13 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
         </div>
 
         <div>
-          <h2 className="text-xl font-black tracking-tight">Scorecard Privacy & Access Restricted</h2>
+          <h2 className="text-xl font-black tracking-tight">Account Approval Required</h2>
           <p className="text-xs opacity-75 mt-1 max-w-sm mx-auto leading-relaxed">
-            {!isApproved
-              ? 'Pending / Guest users do not have access to view or edit scorecards. Once an administrator approves your account, you can set up your 4-digit PIN code to access your scorecards.'
-              : 'Please select your Player Name or enter your 4-digit PIN code to unlock and view your personal scorecards.'}
+            Guest accounts must be approved by an administrator to view or manage tournament scorecards. Request access below or sign in to your administrator account.
           </p>
         </div>
 
-        {!isApproved && onRequestAccess && (
+        {onRequestAccess && (
           <button
             onClick={onRequestAccess}
             className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs shadow-lg transition active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20 cursor-pointer"
@@ -134,8 +141,35 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
             <span>Request Access from Admin</span>
           </button>
         )}
+      </div>
+    );
+  }
 
-        {isApproved && onOpenPinModal && (
+  // 2. Approved user but no active player name selected view
+  if (!isAdmin && isUserApproved && !activeVerifiedName) {
+    const approvedPlayerNames = Array.from(
+      new Set(
+        [
+          ...registeredUsers.filter((u) => u.approved !== false && u.displayName && !isAdminPlayerName(u.displayName)).map((u) => u.displayName!),
+          ...rounds.map((r) => r.player_name).filter((n) => n && !isAdminPlayerName(n)),
+        ]
+      )
+    );
+
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
+        <div className="w-16 h-16 rounded-3xl bg-emerald-500/15 flex items-center justify-center text-emerald-600 mb-1">
+          <KeyRound className="w-8 h-8 stroke-[2.2]" />
+        </div>
+
+        <div>
+          <h2 className="text-xl font-black tracking-tight">Select Player Name</h2>
+          <p className="text-xs opacity-75 mt-1 max-w-sm mx-auto leading-relaxed">
+            Your account is approved! Enter your 4-digit PIN code or select your Player Name to unlock your scorecards.
+          </p>
+        </div>
+
+        {onOpenPinModal && (
           <button
             onClick={onOpenPinModal}
             className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm shadow-lg transition active:scale-95 cursor-pointer ${

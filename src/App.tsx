@@ -94,21 +94,9 @@ export default function App() {
     localStorage.removeItem('golf_verified_player');
   };
 
-  // Sign out user and clear session PIN verification when app is closed or restarted
+  // Preserve session storage; do not sign out auth on window unload/hide
   useEffect(() => {
-    const handleClose = () => {
-      sessionStorage.removeItem('golf_verified_player');
-      localStorage.removeItem('golf_verified_player');
-      signOut(auth).catch(() => {});
-    };
-
-    window.addEventListener('beforeunload', handleClose);
-    window.addEventListener('pagehide', handleClose);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleClose);
-      window.removeEventListener('pagehide', handleClose);
-    };
+    // Only cleanup session storage if needed, preserve Firebase Auth state
   }, []);
 
   // Synchronize settings with storage
@@ -147,6 +135,16 @@ export default function App() {
     return () => unsubAuth();
   }, []);
 
+  // Sync userProfile automatically whenever dbUsers list is updated from Firestore
+  useEffect(() => {
+    if (auth.currentUser?.uid && dbUsers.length > 0) {
+      const match = dbUsers.find((u) => u.uid === auth.currentUser?.uid);
+      if (match) {
+        setUserProfile(match);
+      }
+    }
+  }, [dbUsers]);
+
   // Automatically sync verifiedPlayerName for approved authenticated users
   useEffect(() => {
     if (
@@ -165,18 +163,26 @@ export default function App() {
     }
   }, [userProfile]);
 
+  // Global comprehensive approval check
+  const isApprovedUser = React.useMemo(() => {
+    if (userProfile?.role === 'admin' || userProfile?.approved) return true;
+    if (verifiedPlayerName) return true;
+    if (auth.currentUser?.uid && dbUsers.some((u) => u.uid === auth.currentUser?.uid && u.approved)) return true;
+    if (verifiedPlayerName && dbUsers.some((u) => u.displayName?.trim().toLowerCase() === verifiedPlayerName.trim().toLowerCase() && u.approved)) return true;
+    return false;
+  }, [userProfile, verifiedPlayerName, dbUsers]);
+
   // Listen to Firestore real-time scorecards database
   useEffect(() => {
     const currentUid = auth.currentUser?.uid || '';
-    const isApprovedOrAdmin = userProfile?.role === 'admin' || userProfile?.approved === true;
 
-    const unsubRounds = listenToRounds(currentUid, isApprovedOrAdmin, (firestoreRounds) => {
+    const unsubRounds = listenToRounds(currentUid, isApprovedUser, (firestoreRounds) => {
       const cleanRounds = (firestoreRounds || []).filter((r) => !r.id.startsWith('sample-round-'));
       setRounds(cleanRounds);
     });
 
     return () => unsubRounds();
-  }, [userProfile]);
+  }, [userProfile, isApprovedUser]);
 
   const handleThemeChange = (mode: ThemeMode) => {
     setThemeMode(mode);
@@ -532,7 +538,7 @@ export default function App() {
             currentUserProfile={userProfile}
             onVerifyPinForPlayer={handleOpenPinModal}
             userRole={userProfile?.role}
-            isApproved={userProfile?.role === 'admin' || userProfile?.approved}
+            isApproved={isApprovedUser}
             registeredUsers={dbUsers}
             onRemovePlayerName={handleRemovePlayerName}
             onRequestAccess={handleOpenRequestAccess}
@@ -591,7 +597,7 @@ export default function App() {
             onNewRoundClick={() => setScreenState({ type: 'tabs', tab: 'new_round' })}
             themeMode={themeMode}
             userRole={userProfile?.role}
-            isApproved={userProfile?.role === 'admin' || userProfile?.approved}
+            isApproved={isApprovedUser}
             verifiedPlayerName={verifiedPlayerName}
             currentUserProfile={userProfile}
             registeredUsers={dbUsers}
@@ -618,7 +624,7 @@ export default function App() {
         setIsAdminModalOpen(true);
       }}
       userRole={userProfile?.role}
-      isApproved={userProfile?.approved}
+      isApproved={isApprovedUser}
     >
       {/* Toast banner for CSV import feedback */}
       {importMessage && (
@@ -639,7 +645,7 @@ export default function App() {
           onTabChange={(tab) => setScreenState({ type: 'tabs', tab })}
           themeMode={themeMode}
           hasUnfinishedRound={!!unfinishedRound}
-          isSignedWithPin={Boolean(verifiedPlayerName) || userProfile?.role === 'admin' || Boolean(userProfile?.approved)}
+          isSignedWithPin={isApprovedUser}
         />
       )}
 
