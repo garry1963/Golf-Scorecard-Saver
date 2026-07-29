@@ -222,10 +222,12 @@ export function getRecentPlayers(): string[] {
     const raw = localStorage.getItem(STORAGE_KEYS.RECENT_PLAYERS);
     const parsed: string[] = raw ? JSON.parse(raw) : [];
     const removed = getRemovedPlayerNames().map((r) => r.toLowerCase());
+    const adminNames = ['administrator', 'admin', 'administrator (google session)', 'garrydavies1963@gmail.com'];
     return parsed.filter(
       (p) =>
         p &&
         p.trim() &&
+        !adminNames.includes(p.trim().toLowerCase()) &&
         !SAMPLE_PLAYER_NAMES.includes(p.trim().toLowerCase()) &&
         !removed.includes(p.trim().toLowerCase())
     );
@@ -265,7 +267,8 @@ export function getRecentCourses(): string[] {
 }
 
 function saveRecentPlayerAndCourse(player: string, course: string) {
-  if (player.trim()) {
+  const adminNames = ['administrator', 'admin', 'administrator (google session)', 'garrydavies1963@gmail.com'];
+  if (player.trim() && !adminNames.includes(player.trim().toLowerCase())) {
     const players = getRecentPlayers().filter((p) => p.toLowerCase() !== player.trim().toLowerCase());
     players.unshift(player.trim());
     localStorage.setItem(STORAGE_KEYS.RECENT_PLAYERS, JSON.stringify(players.slice(0, 10)));

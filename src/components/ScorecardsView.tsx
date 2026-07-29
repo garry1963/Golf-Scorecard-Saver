@@ -31,6 +31,7 @@ interface ScorecardsViewProps {
   isApproved?: boolean;
   verifiedPlayerName?: string | null;
   onOpenPinModal?: () => void;
+  onRequestAccess?: () => void;
 }
 
 type SortField = 'date' | 'course' | 'player';
@@ -47,6 +48,7 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
   isApproved,
   verifiedPlayerName,
   onOpenPinModal,
+  onRequestAccess,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortField>('date');
@@ -107,6 +109,16 @@ export const ScorecardsView: React.FC<ScorecardsViewProps> = ({
               : 'Please enter your 4-digit PIN code for your Player Name to unlock and view your personal scorecards.'}
           </p>
         </div>
+
+        {!isApproved && onRequestAccess && (
+          <button
+            onClick={onRequestAccess}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs shadow-lg transition active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/20"
+          >
+            <User className="w-4 h-4" />
+            <span>Request Access from Admin</span>
+          </button>
+        )}
 
         {isApproved && onOpenPinModal && (
           <button

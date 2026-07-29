@@ -156,6 +156,34 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   const isSunlight = themeMode === 'sunlight';
   const isAdmin = currentUserProfile?.role === 'admin';
 
+  // Compute merged list of pending requests from both pending_users and users collections
+  const effectivePendingList = React.useMemo(() => {
+    const map = new Map<string, PendingUser>();
+    
+    // 1. From pending_users collection
+    pendingList.forEach((p) => {
+      if (!p.approved) {
+        map.set(p.uid, p);
+      }
+    });
+
+    // 2. From users collection (where role === 'user' and !approved)
+    allUsersList.forEach((u) => {
+      if (u.role === 'user' && !u.approved) {
+        if (!map.has(u.uid)) {
+          map.set(u.uid, {
+            uid: u.uid,
+            displayName: u.displayName || 'Golf Player',
+            approved: false,
+            requestedAt: u.createdAt || new Date().toISOString(),
+          });
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  }, [pendingList, allUsersList]);
+
   useEffect(() => {
     if (!isAdmin && (activeTab === 'pending' || activeTab === 'users' || activeTab === 'tournaments')) {
       setActiveTab('login');
@@ -433,9 +461,9 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
               >
                 <Clock className="w-3.5 h-3.5" />
                 <span>Pending</span>
-                {pendingList.filter((p) => !p.approved).length > 0 && (
+                {effectivePendingList.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-black font-black">
-                    {pendingList.filter((p) => !p.approved).length}
+                    {effectivePendingList.length}
                   </span>
                 )}
               </button>
@@ -719,22 +747,21 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
         {isAdmin && activeTab === 'pending' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-              <span>Pending Requests ({pendingList.filter((p) => !p.approved).length})</span>
+              <span>Pending Requests ({effectivePendingList.length})</span>
               <span className="flex items-center gap-1 text-emerald-600">
                 <Database className="w-3.5 h-3.5" />
                 <span>{allRoundsCount} Scorecards in DB</span>
               </span>
             </div>
 
-            {pendingList.filter((p) => !p.approved).length === 0 ? (
+            {effectivePendingList.length === 0 ? (
               <div className="text-center py-8 opacity-60 text-sm">
                 <UserCheck className="w-10 h-10 mx-auto mb-2 opacity-40 text-emerald-500" />
                 No pending user access requests at this time.
               </div>
             ) : (
               <div className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
-                {pendingList
-                  .filter((p) => !p.approved)
+                {effectivePendingList
                   .map((p) => (
                     <div
                       key={p.uid}

@@ -15,6 +15,8 @@ import {
 
 interface ScoreEntryViewProps {
   round: Round;
+  siblingRounds?: Round[];
+  onSelectRound?: (roundId: string) => void;
   initialHoleNumber?: number;
   onUpdateScore: (holeNumber: number, newScore: number | null, par?: number) => void;
   onFinishRoundClick: () => void;
@@ -26,6 +28,8 @@ interface ScoreEntryViewProps {
 
 export const ScoreEntryView: React.FC<ScoreEntryViewProps> = ({
   round,
+  siblingRounds = [],
+  onSelectRound,
   initialHoleNumber = 1,
   onUpdateScore,
   onFinishRoundClick,
@@ -150,6 +154,41 @@ export const ScoreEntryView: React.FC<ScoreEntryViewProps> = ({
           <span>Card</span>
         </button>
       </div>
+
+      {/* Round Switcher Bar if Multiple Tournament Rounds */}
+      {siblingRounds.length > 1 && onSelectRound && (
+        <div className={`px-3 py-1.5 border-b flex items-center justify-center gap-2 ${
+          isSunlight
+            ? 'bg-yellow-300 border-black'
+            : isDark
+            ? 'bg-slate-900/60 border-slate-800'
+            : 'bg-slate-50 border-slate-200'
+        }`}>
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mr-1">Rounds:</span>
+          {siblingRounds.map((r) => {
+            const isCurrentRound = r.id === round.id;
+            const rNum = r.round_number || 1;
+            return (
+              <button
+                key={r.id}
+                onClick={() => onSelectRound(r.id)}
+                className={`px-3 py-1 rounded-lg text-xs font-black transition active:scale-95 flex items-center gap-1 ${
+                  isCurrentRound
+                    ? isSunlight
+                      ? 'bg-black text-white'
+                      : 'bg-emerald-600 text-white shadow-sm'
+                    : isDark
+                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span>Round {rNum}</span>
+                {r.completed && <span className="text-[10px]">✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Hole Progress Bar Across Top */}
       <div className={`px-3 py-2.5 border-b shadow-inner ${

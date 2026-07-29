@@ -22,6 +22,7 @@ interface NewRoundViewProps {
   isApproved?: boolean;
   registeredUsers?: UserProfile[];
   onRemovePlayerName?: (playerName: string) => void;
+  onRequestAccess?: () => void;
 }
 
 export const NewRoundView: React.FC<NewRoundViewProps> = ({
@@ -36,6 +37,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   isApproved,
   registeredUsers = [],
   onRemovePlayerName,
+  onRequestAccess,
 }) => {
   const [playerName, setPlayerName] = useState(defaultPlayerName || '');
   const [isCustomPlayer, setIsCustomPlayer] = useState<boolean>(false);
@@ -43,6 +45,12 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   const [tournamentName, setTournamentName] = useState<string>('');
   const [numRounds, setNumRounds] = useState<RoundsCount>(defaultNumRounds || 2);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultNumRounds) {
+      setNumRounds(defaultNumRounds);
+    }
+  }, [defaultNumRounds]);
 
   const isSunlight = themeMode === 'sunlight';
   const isDark = themeMode === 'dark';
@@ -58,10 +66,11 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     );
   }, [isAdmin, verifiedPlayerName, playerName]);
 
-  // Gather unique available players from approved registered users, verified player name, active rounds, and recent players
+  // Gather unique available players from approved registered users, verified player name, active rounds, and recent players (strictly excluding Administrator)
   const availablePlayers = React.useMemo(() => {
     const list: string[] = [];
     const removed = getRemovedPlayerNames().map((r) => r.toLowerCase());
+    const adminNames = ['administrator', 'admin', 'administrator (google session)', 'garrydavies1963@gmail.com'];
 
     const addIfValid = (name?: string | null) => {
       if (!name) return;
@@ -69,6 +78,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       const lower = clean.toLowerCase();
       if (
         clean &&
+        !adminNames.includes(lower) &&
         !SAMPLE_PLAYER_NAMES.includes(lower) &&
         !removed.includes(lower) &&
         !list.some((item) => item.toLowerCase() === lower)
@@ -77,15 +87,17 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       }
     };
 
-    // 1. Approved Registered Users from Firestore
+    // 1. Approved Registered Users from Firestore (excluding admins)
     if (registeredUsers && registeredUsers.length > 0) {
       registeredUsers
-        .filter((u) => u.approved && u.displayName)
+        .filter((u) => u.approved && u.displayName && u.role !== 'admin' && u.email?.toLowerCase() !== 'garrydavies1963@gmail.com')
         .forEach((u) => addIfValid(u.displayName));
     }
 
-    // 2. Currently Verified Player Name
-    addIfValid(verifiedPlayerName);
+    // 2. Currently Verified Player Name (if not admin)
+    if (!isAdmin) {
+      addIfValid(verifiedPlayerName);
+    }
 
     // 3. Stored Rounds (only active rounds in localStorage/Firestore)
     try {
@@ -97,7 +109,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       // ignore
     }
 
-    // 4. Recent Players (sample names already filtered out)
+    // 4. Recent Players (sample names & admin names filtered out)
     const recent = getRecentPlayers();
     recent.forEach((p) => {
       addIfValid(p);
@@ -109,7 +121,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     }
 
     return list;
-  }, [registeredUsers, verifiedPlayerName, defaultPlayerName]);
+  }, [registeredUsers, verifiedPlayerName, defaultPlayerName, isAdmin]);
 
   // Set default player from availablePlayers if available and not custom
   useEffect(() => {
@@ -193,9 +205,35 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       return;
     }
 
+    const selectedRoundsCount: RoundsCount = Number(numRounds) === 4 ? 4 : 2;
     setError(null);
-    onStartRound(playerName.trim(), tournamentName.trim(), numRounds);
+    onStartRound(playerName.trim(), tournamentName.trim(), selectedRoundsCount);
   };
+
+  if (!isAdmin && !isApproved) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
+        <div className="w-16 h-16 rounded-3xl bg-amber-500/15 flex items-center justify-center text-amber-500 mb-1">
+          <Lock className="w-8 h-8 stroke-[2.2]" />
+        </div>
+        <div className="space-y-1.5 max-w-sm">
+          <h2 className="text-xl font-black tracking-tight">Player Approval Required</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Tournament creation and scorecard entry are restricted to approved registered players. Please request approval from the Administrator to access tournaments.
+          </p>
+        </div>
+        {onRequestAccess && (
+          <button
+            onClick={onRequestAccess}
+            className="mt-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg transition active:scale-95 flex items-center gap-2 cursor-pointer"
+          >
+            <User className="w-4 h-4" />
+            <span>Request Access from Admin</span>
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col p-4 w-full gap-5">
@@ -470,7 +508,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
             id="btn-start-round"
           >
             <Play className="w-6 h-6 fill-current" />
-            <span>Start Round 1</span>
+            <span>Start Round 1 of {numRounds}</span>
           </button>
         </div>
       </form>

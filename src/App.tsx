@@ -169,11 +169,12 @@ export default function App() {
 
   // Handlers
   const handleStartNewRound = (playerName: string, tournamentName: string, numRounds: RoundsCount) => {
+    const roundsCount: RoundsCount = Number(numRounds) === 4 ? 4 : 2;
     const now = new Date();
     const tournamentId = 'tourn-' + Date.now();
     const createdRounds: Round[] = [];
 
-    for (let rNum = 1; rNum <= numRounds; rNum++) {
+    for (let rNum = 1; rNum <= roundsCount; rNum++) {
       const rId = `round-${Date.now()}-${rNum}`;
       const initialScores: Record<number, number | null> = {};
       const initialPars: Record<number, number> = {};
@@ -189,7 +190,7 @@ export default function App() {
         course_name: tournamentName,
         date: now.toISOString().split('T')[0],
         holes: 18,
-        num_rounds: numRounds,
+        num_rounds: roundsCount,
         round_number: rNum,
         tournament_id: tournamentId,
         completed: false,
@@ -414,9 +415,21 @@ export default function App() {
         return null;
       }
 
+      const siblingRounds = rounds
+        .filter((r) =>
+          r.tournament_id && activeRound.tournament_id
+            ? r.tournament_id === activeRound.tournament_id
+            : r.course_name === activeRound.course_name && r.player_name === activeRound.player_name && r.date === activeRound.date
+        )
+        .sort((a, b) => (a.round_number || 1) - (b.round_number || 1));
+
       return (
         <ScoreEntryView
           round={activeRound}
+          siblingRounds={siblingRounds}
+          onSelectRound={(targetRoundId) =>
+            setScreenState({ type: 'score_entry', roundId: targetRoundId, holeNumber: 1 })
+          }
           initialHoleNumber={screenState.holeNumber}
           onUpdateScore={(holeNumber, score, par) =>
             handleUpdateScore(activeRound.id, holeNumber, score, par)
@@ -495,6 +508,7 @@ export default function App() {
             isApproved={userProfile?.role === 'admin' || userProfile?.approved}
             registeredUsers={dbUsers}
             onRemovePlayerName={handleRemovePlayerName}
+            onRequestAccess={() => setIsAdminModalOpen(true)}
           />
         );
       case 'help':
@@ -551,6 +565,7 @@ export default function App() {
                 verifiedPlayerName || userProfile?.displayName || settings.defaultPlayerName || 'Player'
               )
             }
+            onRequestAccess={() => setIsAdminModalOpen(true)}
           />
         );
     }
