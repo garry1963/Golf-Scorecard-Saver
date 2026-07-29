@@ -58,6 +58,7 @@ interface AdminApprovalModalProps {
   onProfileUpdated: (profile: UserProfile | null) => void;
   themeMode: ThemeMode;
   allRoundsCount?: number;
+  initialTab?: 'scorecards' | 'settings' | 'help' | 'pending' | 'users' | 'tournaments' | 'login' | 'request';
 
   // Scorecards props
   rounds?: Round[];
@@ -99,8 +100,15 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   onClearAllData,
   onDeleteUserAndData,
   onRemovePlayerName,
+  initialTab = 'login',
 }) => {
-  const [activeTab, setActiveTab] = useState<'scorecards' | 'settings' | 'help' | 'pending' | 'users' | 'tournaments' | 'login' | 'request'>('login');
+  const [activeTab, setActiveTab] = useState<'scorecards' | 'settings' | 'help' | 'pending' | 'users' | 'tournaments' | 'login' | 'request'>(initialTab);
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
   const [adminEmail, setAdminEmail] = useState('admin@golfscorecards.com');
   const [adminPass, setAdminPass] = useState('');
   const [requestName, setRequestName] = useState('');

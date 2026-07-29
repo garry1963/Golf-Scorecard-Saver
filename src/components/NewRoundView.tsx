@@ -223,31 +223,6 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
     onStartRound(playerName.trim(), tournamentName.trim(), selectedRoundsCount);
   };
 
-  if (!isAdmin && !isApproved) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
-        <div className="w-16 h-16 rounded-3xl bg-amber-500/15 flex items-center justify-center text-amber-500 mb-1">
-          <Lock className="w-8 h-8 stroke-[2.2]" />
-        </div>
-        <div className="space-y-1.5 max-w-sm">
-          <h2 className="text-xl font-black tracking-tight">Player Approval Required</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Tournament creation and scorecard entry are restricted to approved registered players. Please request approval from the Administrator to access tournaments.
-          </p>
-        </div>
-        {onRequestAccess && (
-          <button
-            onClick={onRequestAccess}
-            className="mt-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg transition active:scale-95 flex items-center gap-2 cursor-pointer"
-          >
-            <User className="w-4 h-4" />
-            <span>Request Access from Admin</span>
-          </button>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 flex flex-col p-4 w-full gap-5">
       {/* Header */}
@@ -511,6 +486,36 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Request Access Banner */}
+        {onRequestAccess && (
+          <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${
+            isDark
+              ? 'bg-slate-900/60 border-slate-800 text-slate-300'
+              : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+          }`}>
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 shrink-0">
+                <User className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xs font-bold">Need Approval or Access?</div>
+                <p className="text-[11px] opacity-75">
+                  Request player access from the administrator to register your name.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onRequestAccess}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+              id="btn-request-access-home"
+            >
+              <User className="w-4 h-4" />
+              <span>Request Access from Admin</span>
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 font-bold text-xs">

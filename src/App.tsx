@@ -65,8 +65,14 @@ export default function App() {
   // Firebase auth & admin state
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
+  const [adminModalTab, setAdminModalTab] = useState<'scorecards' | 'settings' | 'help' | 'pending' | 'users' | 'tournaments' | 'login' | 'request'>('login');
   const [dbTournaments, setDbTournaments] = useState<Tournament[]>([]);
   const [dbUsers, setDbUsers] = useState<UserProfile[]>([]);
+
+  const handleOpenRequestAccess = () => {
+    setAdminModalTab('request');
+    setIsAdminModalOpen(true);
+  };
 
   // PIN Verification State (Session-only: requires PIN re-entry on app restart)
   const [verifiedPlayerName, setVerifiedPlayerName] = useState<string | null>(() => {
@@ -509,14 +515,17 @@ export default function App() {
             isApproved={userProfile?.role === 'admin' || userProfile?.approved}
             registeredUsers={dbUsers}
             onRemovePlayerName={handleRemovePlayerName}
-            onRequestAccess={() => setIsAdminModalOpen(true)}
+            onRequestAccess={handleOpenRequestAccess}
           />
         );
       case 'help':
         return (
           <UserHelpView
             themeMode={themeMode}
-            onOpenAuthPortal={() => setIsAdminModalOpen(true)}
+            onOpenAuthPortal={() => {
+              setAdminModalTab('login');
+              setIsAdminModalOpen(true);
+            }}
           />
         );
       case 'settings':
@@ -540,7 +549,10 @@ export default function App() {
               Application Settings are restricted and can only be accessed from within the Admin Portal by authorized administrators.
             </p>
             <button
-              onClick={() => setIsAdminModalOpen(true)}
+              onClick={() => {
+                setAdminModalTab('login');
+                setIsAdminModalOpen(true);
+              }}
               className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 cursor-pointer"
             >
               Open Admin Portal
@@ -566,7 +578,7 @@ export default function App() {
                 verifiedPlayerName || userProfile?.displayName || settings.defaultPlayerName || 'Player'
               )
             }
-            onRequestAccess={() => setIsAdminModalOpen(true)}
+            onRequestAccess={handleOpenRequestAccess}
           />
         );
     }
@@ -579,7 +591,10 @@ export default function App() {
       themeMode={themeMode}
       onThemeChange={handleThemeChange}
       activeRoundTitle={activeRoundTitle}
-      onOpenAdminModal={() => setIsAdminModalOpen(true)}
+      onOpenAdminModal={() => {
+        setAdminModalTab(userProfile?.role === 'admin' ? 'pending' : 'login');
+        setIsAdminModalOpen(true);
+      }}
       userRole={userProfile?.role}
       isApproved={userProfile?.approved}
     >
@@ -619,6 +634,7 @@ export default function App() {
       {/* Admin Review & User Auth Portal Modal */}
       <AdminApprovalModal
         isOpen={isAdminModalOpen}
+        initialTab={adminModalTab}
         onClose={() => setIsAdminModalOpen(false)}
         currentUserProfile={userProfile}
         onProfileUpdated={(prof) => setUserProfile(prof)}
