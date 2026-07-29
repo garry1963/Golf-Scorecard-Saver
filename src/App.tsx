@@ -500,6 +500,7 @@ export default function App() {
             defaultPlayerName={settings.defaultPlayerName}
             defaultNumRounds={settings.defaultNumRounds}
             dbTournaments={dbTournaments}
+            rounds={rounds}
             onStartRound={handleStartNewRound}
             themeMode={themeMode}
             verifiedPlayerName={verifiedPlayerName}

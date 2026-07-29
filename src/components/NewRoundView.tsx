@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RoundsCount, ThemeMode, Tournament } from '../types';
+import { Round, RoundsCount, ThemeMode, Tournament } from '../types';
 import { UserProfile } from '../lib/firebase';
 import { User, Trophy, Play, ChevronDown, Plus, KeyRound, Lock, CheckCircle2, Trash2 } from 'lucide-react';
 import {
@@ -15,6 +15,7 @@ interface NewRoundViewProps {
   defaultPlayerName?: string;
   defaultNumRounds?: RoundsCount;
   dbTournaments?: Tournament[];
+  rounds?: Round[];
   onStartRound: (playerName: string, tournamentName: string, numRounds: RoundsCount) => void;
   themeMode: ThemeMode;
   verifiedPlayerName?: string | null;
@@ -30,6 +31,7 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
   defaultPlayerName = '',
   defaultNumRounds = 2,
   dbTournaments = [],
+  rounds = [],
   onStartRound,
   themeMode,
   verifiedPlayerName,
@@ -91,10 +93,10 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       }
     };
 
-    // 1. Approved Registered Users from Firestore (excluding admins)
+    // 1. Registered Users from Firestore (excluding admins)
     if (registeredUsers && registeredUsers.length > 0) {
       registeredUsers
-        .filter((u) => u.approved && u.displayName && u.role !== 'admin' && u.email?.toLowerCase() !== 'garrydavies1963@gmail.com')
+        .filter((u) => u.displayName && u.role !== 'admin' && u.email?.toLowerCase() !== 'garrydavies1963@gmail.com')
         .forEach((u) => addIfValid(u.displayName));
     }
 
@@ -103,7 +105,12 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       addIfValid(verifiedPlayerName);
     }
 
-    // 3. Stored Rounds (only active rounds in localStorage/Firestore)
+    // 3. Rounds from Firestore
+    if (rounds && rounds.length > 0) {
+      rounds.forEach((r) => addIfValid(r.player_name));
+    }
+
+    // 4. Stored Rounds (in localStorage)
     try {
       const stored = getStoredRounds();
       stored.forEach((r) => {
@@ -113,19 +120,19 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
       // ignore
     }
 
-    // 4. Recent Players (sample names & admin names filtered out)
+    // 5. Recent Players (sample names & admin names filtered out)
     const recent = getRecentPlayers();
     recent.forEach((p) => {
       addIfValid(p);
     });
 
-    // 5. Default player name if explicitly specified and valid
+    // 6. Default player name if explicitly specified and valid
     if (defaultPlayerName && !isAdminPlayerName(defaultPlayerName)) {
       addIfValid(defaultPlayerName);
     }
 
     return list;
-  }, [registeredUsers, verifiedPlayerName, defaultPlayerName, isAdmin]);
+  }, [registeredUsers, rounds, verifiedPlayerName, defaultPlayerName, isAdmin]);
 
   // Set default player from availablePlayers if available and not custom
   useEffect(() => {
@@ -260,29 +267,29 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
               <span>Player Name</span>
             </label>
 
-            {availablePlayers.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (isCustomPlayer) {
-                    setIsCustomPlayer(false);
+            <button
+              type="button"
+              onClick={() => {
+                if (isCustomPlayer) {
+                  setIsCustomPlayer(false);
+                  if (availablePlayers.length > 0) {
                     handlePlayerChange(availablePlayers[0] || '');
-                  } else {
-                    setIsCustomPlayer(true);
-                    setPlayerName('');
                   }
-                }}
-                className="text-xs text-emerald-600 hover:underline font-semibold flex items-center gap-1"
-              >
-                {isCustomPlayer ? 'Select Saved Player' : '+ Enter New Name'}
-              </button>
-            )}
+                } else {
+                  setIsCustomPlayer(true);
+                  setPlayerName('');
+                }
+              }}
+              className="text-xs text-emerald-600 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+            >
+              {isCustomPlayer ? 'Select Saved Player' : '+ Enter New Name'}
+            </button>
           </div>
 
-          {!isCustomPlayer && availablePlayers.length > 0 ? (
+          {!isCustomPlayer ? (
             <div className="relative">
               <select
-                value={availablePlayers.includes(playerName) ? playerName : '__custom__'}
+                value={availablePlayers.includes(playerName) ? playerName : (playerName ? '__custom__' : '')}
                 onChange={(e) => {
                   if (e.target.value === '__custom__') {
                     setIsCustomPlayer(true);
@@ -302,12 +309,21 @@ export const NewRoundView: React.FC<NewRoundViewProps> = ({
                 }`}
                 id="select-player-dropdown"
               >
+                {availablePlayers.length === 0 ? (
+                  <option value="" disabled className={isDark ? 'bg-slate-900 text-slate-400' : 'bg-white text-slate-500'}>
+                    -- No saved players available --
+                  </option>
+                ) : !playerName && (
+                  <option value="" disabled className={isDark ? 'bg-slate-900 text-slate-400' : 'bg-white text-slate-500'}>
+                    -- Select Player Name --
+                  </option>
+                )}
                 {availablePlayers.map((p) => (
                   <option key={p} value={p} className={isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
                     {p} {verifiedPlayerName?.trim().toLowerCase() === p.trim().toLowerCase() ? '✓ (PIN Verified)' : ''}
                   </option>
                 ))}
-                <option value="__custom__" className={isDark ? 'bg-slate-900 text-amber-400' : 'bg-white text-emerald-700'}>
+                <option value="__custom__" className={isDark ? 'bg-slate-900 text-amber-400 font-bold' : 'bg-white text-emerald-700 font-bold'}>
                   + Enter new player name...
                 </option>
               </select>
