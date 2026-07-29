@@ -36,6 +36,7 @@ import {
   listenToTournaments,
   listenToAllUsers,
   deletePlayerPin,
+  logoutUser,
   UserProfile,
 } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -92,6 +93,20 @@ export default function App() {
     setVerifiedPlayerName(playerName);
     sessionStorage.setItem('golf_verified_player', playerName);
     localStorage.removeItem('golf_verified_player');
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await logoutUser();
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+    setUserProfile(null);
+    setVerifiedPlayerName(null);
+    sessionStorage.removeItem('golf_verified_player');
+    localStorage.removeItem('golf_verified_player');
+    setImportMessage('Signed out of account successfully.');
+    setTimeout(() => setImportMessage(null), 3000);
   };
 
   // Preserve session storage; do not sign out auth on window unload/hide
@@ -555,35 +570,22 @@ export default function App() {
           />
         );
       case 'settings':
-        if (userProfile?.role === 'admin') {
-          return (
-            <SettingsView
-              settings={settings}
-              onSaveSettings={handleSaveSettings}
-              onExportCSV={handleExportCSV}
-              onImportCSV={handleImportCSV}
-              onClearAllData={handleClearAllData}
-              themeMode={themeMode}
-            />
-          );
-        }
         return (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <Shield className="w-12 h-12 text-emerald-600 animate-pulse" />
-            <h2 className="text-lg font-black tracking-tight">Admin Portal Required</h2>
-            <p className="text-xs opacity-75 max-w-sm">
-              Application Settings are restricted and can only be accessed from within the Admin Portal by authorized administrators.
-            </p>
-            <button
-              onClick={() => {
-                setAdminModalTab('login');
-                setIsAdminModalOpen(true);
-              }}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 cursor-pointer"
-            >
-              Open Admin Portal
-            </button>
-          </div>
+          <SettingsView
+            settings={settings}
+            onSaveSettings={handleSaveSettings}
+            onExportCSV={handleExportCSV}
+            onImportCSV={handleImportCSV}
+            onClearAllData={handleClearAllData}
+            themeMode={themeMode}
+            userProfile={userProfile}
+            verifiedPlayerName={verifiedPlayerName}
+            onSignOut={handleSignOut}
+            onOpenAuthPortal={() => {
+              setAdminModalTab('login');
+              setIsAdminModalOpen(true);
+            }}
+          />
         );
       case 'scorecards':
       default:
@@ -625,6 +627,8 @@ export default function App() {
       }}
       userRole={userProfile?.role}
       isApproved={isApprovedUser}
+      verifiedPlayerName={verifiedPlayerName}
+      onSignOut={handleSignOut}
     >
       {/* Toast banner for CSV import feedback */}
       {importMessage && (
@@ -683,6 +687,7 @@ export default function App() {
         onClearAllData={handleClearAllData}
         onDeleteUserAndData={handleDeleteUserAndData}
         onRemovePlayerName={handleRemovePlayerName}
+        onSignOut={handleSignOut}
       />
     </MobileContainer>
   );

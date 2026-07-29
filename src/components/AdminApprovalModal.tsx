@@ -78,6 +78,7 @@ interface AdminApprovalModalProps {
   onClearAllData?: () => void;
   onDeleteUserAndData?: (user: UserProfile) => void;
   onRemovePlayerName?: (playerName: string) => void;
+  onSignOut?: () => void;
 }
 
 export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
@@ -104,6 +105,7 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   onClearAllData,
   onDeleteUserAndData,
   onRemovePlayerName,
+  onSignOut,
   initialTab = 'login',
 }) => {
   const [activeTab, setActiveTab] = useState<'scorecards' | 'settings' | 'help' | 'pending' | 'users' | 'tournaments' | 'login' | 'request'>(initialTab);
@@ -347,8 +349,15 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
   };
 
   const handleLogout = async () => {
-    await logoutUser();
+    try {
+      await logoutUser();
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
     onProfileUpdated(null);
+    if (onSignOut) {
+      onSignOut();
+    }
     setActiveTab('request');
   };
 
@@ -591,21 +600,42 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
         {/* TAB 1: Sign In / Auth */}
         {activeTab === 'login' && (
           <div className="space-y-4">
-            {currentUserProfile ? (
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+            {currentUserProfile || verifiedPlayerName ? (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="font-bold text-sm text-emerald-600 flex items-center gap-2">
                     <UserCheck className="w-5 h-5" />
-                    <span>Currently Authenticated</span>
+                    <span>Currently Signed In</span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-600 text-white">
-                    {currentUserProfile.role}
+                    {currentUserProfile?.role || 'Verified User'}
                   </span>
                 </div>
                 <div className="text-xs space-y-1">
-                  <div>Name: <b>{currentUserProfile.displayName}</b></div>
-                  <div>Email: <b>{currentUserProfile.email || 'N/A'}</b></div>
-                  <div>Status: <b className="text-emerald-600">{currentUserProfile.approved ? 'Approved Access' : 'Pending Review'}</b></div>
+                  {currentUserProfile?.displayName && (
+                    <div>Name: <b>{currentUserProfile.displayName}</b></div>
+                  )}
+                  {currentUserProfile?.email && (
+                    <div>Email: <b>{currentUserProfile.email}</b></div>
+                  )}
+                  {verifiedPlayerName && !currentUserProfile?.displayName && (
+                    <div>Verified Player PIN: <b>{verifiedPlayerName}</b></div>
+                  )}
+                  <div>
+                    Status: <b className="text-emerald-600">{currentUserProfile?.approved || verifiedPlayerName ? 'Approved Access' : 'Pending Review'}</b>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-emerald-500/20">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow cursor-pointer"
+                    id="btn-admin-tab-signout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out of Account</span>
+                  </button>
                 </div>
               </div>
             ) : (

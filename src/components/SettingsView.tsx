@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { AppSettings, RoundsCount, ThemeMode } from '../types';
+import { UserProfile } from '../lib/firebase';
 import {
   Sun,
   Moon,
@@ -10,6 +11,9 @@ import {
   CheckCircle2,
   User,
   Zap,
+  LogOut,
+  Shield,
+  KeyRound,
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -19,6 +23,10 @@ interface SettingsViewProps {
   onImportCSV: (file: File) => void;
   onClearAllData: () => void;
   themeMode: ThemeMode;
+  userProfile?: UserProfile | null;
+  verifiedPlayerName?: string | null;
+  onSignOut?: () => void;
+  onOpenAuthPortal?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -28,6 +36,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onImportCSV,
   onClearAllData,
   themeMode,
+  userProfile,
+  verifiedPlayerName,
+  onSignOut,
+  onOpenAuthPortal,
 }) => {
   const [defaultNumRounds, setDefaultNumRounds] = useState<RoundsCount>(settings.defaultNumRounds || 2);
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(settings.themeMode);
@@ -69,11 +81,77 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <div>
         <h1 className="text-2xl font-black tracking-tight">Settings</h1>
         <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-          Preferences & Data Management
+          Preferences, Account & Data Management
         </p>
       </div>
 
       <div className="flex-1 flex flex-col gap-4">
+        {/* Account & Security Section */}
+        <div
+          className={`p-4 rounded-2xl flex flex-col gap-3 border shadow-sm ${
+            isSunlight
+              ? 'bg-yellow-100 border-2 border-black text-black'
+              : isDark
+              ? 'bg-slate-900 border-slate-800 text-slate-100'
+              : 'bg-white border-slate-200 text-slate-900'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-600 flex items-center gap-1.5">
+              <Shield className="w-4 h-4" />
+              <span>Account & Session</span>
+            </h2>
+            {userProfile?.role === 'admin' ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-600 text-white">
+                Admin
+              </span>
+            ) : verifiedPlayerName || userProfile?.approved ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-600 text-white">
+                Approved
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500 text-white">
+                Guest
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 font-black">
+                <User className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-sm font-bold">
+                  {userProfile?.displayName || verifiedPlayerName || 'Guest User'}
+                </div>
+                <div className="text-xs opacity-75">
+                  {userProfile?.email ||
+                    (verifiedPlayerName ? `PIN Verified: ${verifiedPlayerName}` : 'No account signed in')}
+                </div>
+              </div>
+            </div>
+
+            {(userProfile || verifiedPlayerName) && onSignOut ? (
+              <button
+                onClick={onSignOut}
+                className="px-3.5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
+                id="btn-settings-sign-out"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
+            ) : onOpenAuthPortal ? (
+              <button
+                onClick={onOpenAuthPortal}
+                className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
+              >
+                <User className="w-4 h-4" />
+                <span>Sign In</span>
+              </button>
+            ) : null}
+          </div>
+        </div>
         {/* Section 1: Preferences */}
         <div className={`p-4 rounded-2xl flex flex-col gap-4 border shadow-sm ${
           isSunlight

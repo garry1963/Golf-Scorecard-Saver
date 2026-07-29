@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Smartphone, Sun, Moon, Sparkles, Monitor, Shield, UserCheck, ShieldAlert } from 'lucide-react';
+import { Smartphone, Sun, Moon, Sparkles, Monitor, Shield, UserCheck, ShieldAlert, LogOut } from 'lucide-react';
 import { ThemeMode } from '../types';
 
 interface MobileContainerProps {
@@ -10,6 +10,8 @@ interface MobileContainerProps {
   onOpenAdminModal?: () => void;
   userRole?: 'admin' | 'user';
   isApproved?: boolean;
+  verifiedPlayerName?: string | null;
+  onSignOut?: () => void;
 }
 
 export const MobileContainer: React.FC<MobileContainerProps> = ({
@@ -20,6 +22,8 @@ export const MobileContainer: React.FC<MobileContainerProps> = ({
   onOpenAdminModal,
   userRole,
   isApproved,
+  verifiedPlayerName,
+  onSignOut,
 }) => {
   const [isPhoneFrame, setIsPhoneFrame] = useState<boolean>(true);
 
@@ -68,6 +72,19 @@ export const MobileContainer: React.FC<MobileContainerProps> = ({
             >
               <Shield className="w-3.5 h-3.5" />
               <span>{userRole === 'admin' ? 'Admin' : isApproved ? 'User' : 'Auth'}</span>
+            </button>
+          )}
+
+          {/* Quick Sign Out Button */}
+          {onSignOut && (userRole === 'admin' || isApproved || verifiedPlayerName) && (
+            <button
+              onClick={onSignOut}
+              title="Sign Out of Account"
+              className="flex items-center gap-1 px-2 py-1 rounded bg-rose-600/90 hover:bg-rose-600 text-white transition active:scale-95 text-[11px] font-bold shadow-sm cursor-pointer"
+              id="btn-header-signout"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           )}
 
