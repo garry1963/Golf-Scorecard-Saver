@@ -126,8 +126,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   {userProfile?.displayName || verifiedPlayerName || 'Guest User'}
                 </div>
                 <div className="text-xs opacity-75">
-                  {userProfile?.email ||
-                    (verifiedPlayerName ? `PIN Verified: ${verifiedPlayerName}` : 'No account signed in')}
+                  {userProfile?.role === 'admin'
+                    ? 'Administrator Access'
+                    : verifiedPlayerName
+                    ? `PIN Verified: ${verifiedPlayerName}`
+                    : userProfile?.approved
+                    ? 'Approved Member'
+                    : 'No account signed in'}
                 </div>
               </div>
             </div>

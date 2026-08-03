@@ -6,6 +6,8 @@ import {
   signInAnonymously,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithPopup,
   GoogleAuthProvider,
   signOut,
@@ -195,36 +197,87 @@ export async function loginAdminWithGoogle(): Promise<UserProfile> {
     if (err.code === 'auth/popup-blocked') {
       throw new Error('Google sign-in popup was blocked by your browser. Please allow popups for this site and try again.');
     }
+    if (err.code === 'auth/unauthorized-domain') {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+      throw new Error(
+        `Firebase Error (auth/unauthorized-domain):\n\n` +
+        `The current domain "${hostname}" is not authorized for Google Sign-In in your Firebase Console.\n\n` +
+        `To authorize it:\n` +
+        `1. Open Firebase Console -> Authentication -> Settings\n` +
+        `2. Click "Authorized domains" and add "${hostname}"\n\n` +
+        `In the meantime, you can log in using Administrator Password below.`
+      );
+    }
     throw err;
   }
 }
 
-// Admin login function (restricted to garrydavies1963@gmail.com)
+// Admin login function with email verification
 export async function loginAdmin(email: string, pass: string): Promise<UserProfile> {
   const cleanEmail = (email || '').toLowerCase().trim();
-  if (cleanEmail && cleanEmail !== 'garrydavies1963@gmail.com') {
-    throw new Error('Access denied: Only garrydavies1963@gmail.com is authorized as administrator.');
+  if (!cleanEmail) {
+    throw new Error('Please enter your administrator email address.');
+  }
+  
+  if (cleanEmail !== 'garrydavies1963@gmail.com') {
+    throw new Error('Access denied: Unauthorized administrator credentials.');
+  }
+
+  if (!pass || pass.trim().length === 0) {
+    throw new Error('Please enter your administrator password.');
   }
 
   let credential;
+  let isNewAccount = false;
+
   try {
-    credential = await signInWithEmailAndPassword(auth, 'garrydavies1963@gmail.com', pass);
+    credential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
   } catch (err: any) {
-    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+    if (
+      err.code === 'auth/user-not-found' ||
+      err.code === 'auth/invalid-credential' ||
+      err.code === 'auth/invalid-email'
+    ) {
+      // First sign-in attempt: create account and link password
       try {
-        credential = await createUserWithEmailAndPassword(auth, 'garrydavies1963@gmail.com', pass);
+        credential = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+        isNewAccount = true;
       } catch (createErr: any) {
-        throw new Error('Failed to authenticate as administrator. Please check your credentials.');
+        if (createErr.code === 'auth/email-already-in-use') {
+          throw new Error('Incorrect password for administrator account.');
+        } else if (createErr.code === 'auth/weak-password') {
+          throw new Error('Password should be at least 6 characters long.');
+        }
+        throw new Error(createErr.message || 'Failed to register administrator credentials.');
       }
+    } else if (err.code === 'auth/wrong-password') {
+      throw new Error('Incorrect password for administrator account.');
     } else {
       throw err;
     }
   }
 
   const user = credential.user;
+
+  // Send email verification if new account or email not yet verified
+  if (!user.emailVerified) {
+    try {
+      await sendEmailVerification(user);
+    } catch (verr: any) {
+      console.warn('Email verification send notice:', verr);
+    }
+    throw new Error(
+      `Email Verification Required!\n\n` +
+      (isNewAccount
+        ? `Administrator account created and password linked.\n`
+        : '') +
+      `A verification email has been sent. Please check your inbox, click the verification link, and then sign in.`
+    );
+  }
+
   const adminProfile: UserProfile = {
     uid: user.uid,
-    email: 'garrydavies1963@gmail.com',
+    email: cleanEmail,
     displayName: 'Administrator',
     role: 'admin',
     approved: true,
@@ -237,6 +290,17 @@ export async function loginAdmin(email: string, pass: string): Promise<UserProfi
     console.warn('Could not update admin profile in Firestore:', err);
   }
   return adminProfile;
+}
+
+export async function sendAdminPasswordReset(email?: string): Promise<void> {
+  const cleanEmail = (email || '').toLowerCase().trim();
+  if (!cleanEmail) {
+    throw new Error('Please enter your administrator email address.');
+  }
+  if (cleanEmail !== 'garrydavies1963@gmail.com') {
+    throw new Error('Access denied: Unauthorized administrator credentials.');
+  }
+  await sendPasswordResetEmail(auth, cleanEmail);
 }
 
 // Logout
