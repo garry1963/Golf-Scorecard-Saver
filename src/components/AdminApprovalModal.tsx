@@ -33,7 +33,6 @@ import {
   auth,
   loginAdmin,
   loginAdminWithGoogle,
-  signInWithGoogle,
   logoutUser,
   requestUserAccess,
   listenToPendingUsers,
@@ -242,25 +241,6 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
       setActiveTab('pending');
     } catch (err: any) {
       console.error('Admin Google login failed:', err);
-      setLoginError(err.message || 'Failed to sign in with Google.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleUserLogin = async () => {
-    setLoginError(null);
-    setLoading(true);
-    try {
-      const profile = await signInWithGoogle();
-      onProfileUpdated(profile);
-      if (profile.role === 'admin') {
-        setActiveTab('pending');
-      } else {
-        setActiveTab('login');
-      }
-    } catch (err: any) {
-      console.error('Player Google login failed:', err);
       setLoginError(err.message || 'Failed to sign in with Google.');
     } finally {
       setLoading(false);
@@ -670,98 +650,44 @@ export const AdminApprovalModal: React.FC<AdminApprovalModalProps> = ({
               </div>
             )}
 
-            {/* Google Sign In Options */}
-            <div className="space-y-3">
-              <div>
-                <button
-                  type="button"
-                  onClick={handleGoogleAdminLogin}
-                  disabled={loading}
-                  className={`w-full py-3 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2.5 transition shadow-md active:scale-95 border ${
-                    isSunlight
-                      ? 'bg-black text-white hover:bg-slate-800 border-black'
-                      : isDark
-                      ? 'bg-purple-900/40 text-purple-200 border-purple-500/40 hover:bg-purple-900/60'
-                      : 'bg-purple-900 text-white hover:bg-purple-800 border-purple-900'
-                  }`}
-                  id="btn-admin-google-login"
-                >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.14C3.26 21.3 7.31 24 12 24z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.59H1.29C.47 8.22 0 10.06 0 12s.47 3.78 1.29 5.41l3.99-3.14z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.59l3.99 3.14c.95-2.83 3.6-4.98 6.72-4.98z"
-                    />
-                  </svg>
-                  <div className="flex flex-col items-start text-left">
-                    <span>
-                      {loading
-                        ? 'Signing in...'
-                        : 'Sign in with Google (Administrator)'}
-                    </span>
-                    <span className="text-[9px] font-normal opacity-80">
-                      Restricted to garrydavies1963@gmail.com
-                    </span>
-                  </div>
-                </button>
-              </div>
-
-              <div>
-                <button
-                  type="button"
-                  onClick={handleGoogleUserLogin}
-                  disabled={loading}
-                  className={`w-full py-3 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2.5 transition shadow-sm active:scale-95 border ${
-                    isSunlight
-                      ? 'bg-white text-black hover:bg-yellow-50 border-black'
-                      : isDark
-                      ? 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700'
-                      : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'
-                  }`}
-                  id="btn-player-google-login"
-                >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.14C3.26 21.3 7.31 24 12 24z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.59H1.29C.47 8.22 0 10.06 0 12s.47 3.78 1.29 5.41l3.99-3.14z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.59l3.99 3.14c.95-2.83 3.6-4.98 6.72-4.98z"
-                    />
-                  </svg>
-                  <div className="flex flex-col items-start text-left">
-                    <span>
-                      {loading
-                        ? 'Signing in...'
-                        : 'Sign in with Google (Player / User)'}
-                    </span>
-                    <span className="text-[9px] font-normal opacity-75">
-                      Sign in with your personal Google account
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
+            {/* Google Sign In Option */}
+            <button
+              type="button"
+              onClick={handleGoogleAdminLogin}
+              disabled={loading}
+              className={`w-full py-3.5 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2.5 transition shadow-md active:scale-95 border cursor-pointer ${
+                isSunlight
+                  ? 'bg-black text-white hover:bg-slate-800 border-black'
+                  : isDark
+                  ? 'bg-purple-900/40 text-purple-200 border-purple-500/40 hover:bg-purple-900/60'
+                  : 'bg-purple-900 text-white hover:bg-purple-800 border-purple-900'
+              }`}
+              id="btn-admin-google-login"
+            >
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.14C3.26 21.3 7.31 24 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.59H1.29C.47 8.22 0 10.06 0 12s.47 3.78 1.29 5.41l3.99-3.14z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.59l3.99 3.14c.95-2.83 3.6-4.98 6.72-4.98z"
+                />
+              </svg>
+              <span>
+                {loading
+                  ? 'Signing in...'
+                  : 'Sign in with Google (Administrator)'}
+              </span>
+            </button>
 
             {/* Collapsible Email/Password option fallback */}
             <details className="mt-4 pt-2 border-t border-slate-500/20 text-xs">
