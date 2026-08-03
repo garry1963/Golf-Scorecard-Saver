@@ -127,7 +127,35 @@ export const AUTHORIZED_ADMIN_EMAILS = [
 
 const googleProvider = new GoogleAuthProvider();
 
-// Admin Google Sign-In function with email lockdown (Strictly garrydavies1963@gmail.com only)
+// General Google Sign-In for players/users
+export async function signInWithGoogle(): Promise<UserProfile> {
+  const result = await signInWithPopup(auth, googleProvider);
+  const user = result.user;
+  const userEmail = (user.email || '').toLowerCase().trim();
+
+  const isAdminEmail = userEmail === 'garrydavies1963@gmail.com';
+
+  const existingProfile = await fetchUserProfile(user.uid);
+
+  const userProfile: UserProfile = {
+    uid: user.uid,
+    email: user.email || '',
+    displayName: user.displayName || user.email?.split('@')[0] || 'User',
+    role: isAdminEmail ? 'admin' : (existingProfile?.role || 'user'),
+    approved: isAdminEmail ? true : (existingProfile?.approved || false),
+    createdAt: existingProfile?.createdAt || new Date().toISOString(),
+  };
+
+  try {
+    await setDoc(doc(db, 'users', user.uid), userProfile, { merge: true });
+  } catch (err) {
+    console.warn('Could not save user profile to Firestore:', err);
+  }
+
+  return userProfile;
+}
+
+// Admin Google Sign-In function with strict email lockdown (garrydavies1963@gmail.com only)
 export async function loginAdminWithGoogle(): Promise<UserProfile> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
@@ -138,14 +166,14 @@ export async function loginAdminWithGoogle(): Promise<UserProfile> {
     if (userEmail !== 'garrydavies1963@gmail.com') {
       await signOut(auth);
       throw new Error(
-        `Access denied: "${user.email}" is not authorized as an administrator. Only garrydavies1963@gmail.com is permitted.`
+        `Access denied: "${user.email}" is not authorized as an administrator. Only garrydavies1963@gmail.com is permitted as administrator.`
       );
     }
 
     const adminProfile: UserProfile = {
       uid: user.uid,
       email: 'garrydavies1963@gmail.com',
-      displayName: 'Administrator',
+      displayName: user.displayName || 'Administrator',
       role: 'admin',
       approved: true,
       createdAt: new Date().toISOString(),
@@ -162,29 +190,11 @@ export async function loginAdminWithGoogle(): Promise<UserProfile> {
       throw err;
     }
     console.error('Google Sign-In error:', err);
-    if (
-      err.code === 'auth/popup-blocked' ||
-      err.code === 'auth/popup-closed-by-user' ||
-      err.code === 'auth/operation-not-allowed' ||
-      err.code === 'auth/admin-restricted-operation' ||
-      err.code === 'auth/unauthorized-domain'
-    ) {
-      console.warn('Google Sign-In popup or operation restricted. Using Google Admin Session Mode for garrydavies1963@gmail.com.');
-      const fallbackUser = auth.currentUser || { uid: 'admin_google_master' };
-      const fallbackAdminProfile: UserProfile = {
-        uid: fallbackUser.uid,
-        email: 'garrydavies1963@gmail.com',
-        displayName: 'Administrator (Google Session)',
-        role: 'admin',
-        approved: true,
-        createdAt: new Date().toISOString(),
-      };
-      try {
-        await setDoc(doc(db, 'users', fallbackUser.uid), fallbackAdminProfile, { merge: true });
-      } catch (e) {
-        console.warn('Could not persist fallback admin profile to Firestore:', e);
-      }
-      return fallbackAdminProfile;
+    if (err.code === 'auth/popup-closed-by-user') {
+      throw new Error('Google sign-in popup was closed before completing. Please try again.');
+    }
+    if (err.code === 'auth/popup-blocked') {
+      throw new Error('Google sign-in popup was blocked by your browser. Please allow popups for this site and try again.');
     }
     throw err;
   }
@@ -201,47 +211,11 @@ export async function loginAdmin(email: string, pass: string): Promise<UserProfi
   try {
     credential = await signInWithEmailAndPassword(auth, 'garrydavies1963@gmail.com', pass);
   } catch (err: any) {
-    if (
-      err.code === 'auth/operation-not-allowed' ||
-      err.code === 'auth/admin-restricted-operation'
-    ) {
-      console.warn('Email/Password auth restricted. Falling back to Admin Session Mode.');
-      const fallbackUser = auth.currentUser || { uid: 'admin_local_master' };
-      const fallbackAdminProfile: UserProfile = {
-        uid: fallbackUser.uid,
-        email: 'garrydavies1963@gmail.com',
-        displayName: 'Administrator (Session Mode)',
-        role: 'admin',
-        approved: true,
-        createdAt: new Date().toISOString(),
-      };
-      try {
-        await setDoc(doc(db, 'users', fallbackUser.uid), fallbackAdminProfile, { merge: true });
-      } catch (e) {
-        console.warn('Could not persist fallback admin profile to Firestore:', e);
-      }
-      return fallbackAdminProfile;
-    }
-
     if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
       try {
         credential = await createUserWithEmailAndPassword(auth, 'garrydavies1963@gmail.com', pass);
       } catch (createErr: any) {
-        const fallbackUser = auth.currentUser || { uid: 'admin_local_master' };
-        const fallbackAdminProfile: UserProfile = {
-          uid: fallbackUser.uid,
-          email: 'garrydavies1963@gmail.com',
-          displayName: 'Administrator (Session Mode)',
-          role: 'admin',
-          approved: true,
-          createdAt: new Date().toISOString(),
-        };
-        try {
-          await setDoc(doc(db, 'users', fallbackUser.uid), fallbackAdminProfile, { merge: true });
-        } catch (e) {
-          console.warn('Could not persist fallback admin profile to Firestore:', e);
-        }
-        return fallbackAdminProfile;
+        throw new Error('Failed to authenticate as administrator. Please check your credentials.');
       }
     } else {
       throw err;
