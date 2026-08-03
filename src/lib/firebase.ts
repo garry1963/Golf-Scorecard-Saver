@@ -63,8 +63,7 @@ export async function ensureAnonymousAuth(): Promise<FirebaseUser | { uid: strin
   try {
     const credential = await signInAnonymously(auth);
     return credential.user;
-  } catch (err: any) {
-    console.warn('Anonymous Auth disabled or restricted in Firebase Console:', err.message || err);
+  } catch (_err) {
     let localId = localStorage.getItem('golf_guest_uid');
     if (!localId) {
       localId = 'user_' + Math.random().toString(36).substring(2, 10);
